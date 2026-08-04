@@ -1,19 +1,21 @@
 #!/usr/bin/env python
-"""三个 checker + verify() 裁决入口。
+"""The three checkers plus verify(), the adjudication entry point.
 
-分级策略(Barry 2026-07-31 定):
-    staleness   → 硬停 (raise FactCheckError)
-    freq_align  → 警告
-    magnitude   → 警告
+Severity is deliberately uneven:
+    staleness   -> hard stop (raises FactCheckError)
+    freq_align  -> warning
+    magnitude   -> warning
 
-"验证是硬约束" —— 警告会被忽略,硬停不会。所以陈旧数据这条必须能中断流程。
+Warnings get ignored; hard stops do not. Stale data is the failure mode that
+actually burns you, so it is the one that has to be able to halt the pipeline.
 
 Usage:
-    from scripts.factcheck import Fact, verify
-    report = verify([f1, f2])          # 陈旧就 raise
-    report = verify(facts, raise_on_error=False)   # 只裁决不中断
+    from skills._lib.factcontract import Fact, verify
+    report = verify([f1, f2])                        # raises if anything is stale
+    report = verify(facts, raise_on_error=False)     # adjudicate without halting
 """
 
+import logging
 from collections import defaultdict
 from datetime import datetime
 from statistics import median
@@ -27,14 +29,16 @@ from .fact import (
     now_utc,
 )
 
+_log = logging.getLogger(__name__)
+
 
 class FactCheckError(Exception):
-    """硬停:有 Fact 没通过 error 级核查。"""
+    """Hard stop: at least one Fact failed an error-level check."""
 
     def __init__(self, errors):
         self.errors = errors
         lines = "\n".join(f"  - [{e['check']}] {e['fact']}: {e['message']}" for e in errors)
-        super().__init__(f"数值核查未通过 ({len(errors)} 项硬停):\n{lines}")
+        super().__init__(f"Fact check failed ({len(errors)} hard stops):\n{lines}")
 
 
 def _issue(level, check, fact, message, **extra):
@@ -51,14 +55,15 @@ def _issue(level, check, fact, message, **extra):
 
 
 # ══════════════════════════════════════════════════════════════════
-#  check 1: staleness —— 硬停
+#  check 1: staleness -- hard stop
 # ══════════════════════════════════════════════════════════════════
 
 def check_staleness(facts, ref: datetime = None):
-    """每个数字的 as_of 不得超过它 freq 允许的陈旧上限。
+    """No Fact may be older than its frequency allows.
 
-    防的是「抄旧数」:$NOW 写成 +14% 实际 -3.39%,就是把几天前的数字
-    当成当日的用。
+    This is the guard against quoting an old number as current: a move copied
+    from a days-old article and presented as today's is the canonical way a
+    research pipeline loses credibility.
     """
     ref = ref or now_utc()
     issues = []
@@ -68,18 +73,20 @@ def check_staleness(facts, ref: datetime = None):
             continue
         age = f.age_seconds(ref)
         if age < 0:
-            # as_of 在未来 —— 多半是时区写错,同样不该放行
+            # An as_of in the future is nearly always a timezone mistake, and it
+            # should not pass just because it is not old.
             issues.append(_issue(
                 "error", "staleness", f,
-                f"as_of 在未来 {abs(age)/3600:.1f} 小时 (as_of={f.as_of}) —— 检查时区",
+                f"as_of is {abs(age)/3600:.1f} hours in the future "
+                f"(as_of={f.as_of}), check the timezone",
                 age_seconds=age, limit_seconds=limit,
             ))
             continue
         if age > limit:
             issues.append(_issue(
                 "error", "staleness", f,
-                f"数据已陈旧 {_human(age)} (freq={f.freq} 上限 {_human(limit)}, "
-                f"as_of={f.as_of}, 源={f.source})",
+                f"data is {_human(age)} old (freq={f.freq} allows {_human(limit)}, "
+                f"as_of={f.as_of}, source={f.source})",
                 age_seconds=round(age), limit_seconds=limit,
             ))
     return issues
@@ -88,21 +95,23 @@ def check_staleness(facts, ref: datetime = None):
 def _human(seconds: float) -> str:
     seconds = float(seconds)
     if seconds < 3600:
-        return f"{seconds/60:.0f} 分钟"
+        return f"{seconds/60:.0f} minutes"
     if seconds < 86400:
-        return f"{seconds/3600:.1f} 小时"
-    return f"{seconds/86400:.1f} 天"
+        return f"{seconds/3600:.1f} hours"
+    return f"{seconds/86400:.1f} days"
 
 
 # ══════════════════════════════════════════════════════════════════
-#  check 2: freq_align —— 警告
+#  check 2: freq_align -- warning
 # ══════════════════════════════════════════════════════════════════
 
 def check_freq_align(facts):
-    """同一 group 内的 Fact 必须同频。
+    """Facts in the same group must share a frequency.
 
-    防的是 DCF/估值里最常见的错:分子用季度、分母用 TTM。
-    没填 group 的 Fact 不参与 —— 由调用方声明意图,不猜。
+    This catches the most common valuation error there is: a numerator taken
+    from one quarter divided by a denominator taken from the trailing twelve
+    months. Facts with no group are exempt, because the caller declares the
+    relationship rather than the checker guessing at it.
     """
     groups = defaultdict(list)
     for f in facts:
@@ -114,7 +123,7 @@ def check_freq_align(facts):
         freqs = {f.freq for f in members}
         if len(freqs) <= 1:
             continue
-        # 少数派更可能是写错的那个
+        # The minority frequency is the more likely mistake.
         counts = defaultdict(list)
         for f in members:
             counts[f.freq].append(f)
@@ -125,22 +134,23 @@ def check_freq_align(facts):
             for f in offenders:
                 issues.append(_issue(
                     "warning", "freq_align", f,
-                    f"group '{gname}' 内混频:本项 freq={freq},"
-                    f"同组多数是 {majority} —— 同一公式不得跨频计算",
+                    f"group '{gname}' mixes frequencies: this Fact is {freq}, "
+                    f"most of the group is {majority}, one formula cannot span frequencies",
                     group=gname, group_freqs=sorted(freqs),
                 ))
     return issues
 
 
 # ══════════════════════════════════════════════════════════════════
-#  check 3: magnitude —— 警告
+#  check 3: magnitude -- warning
 # ══════════════════════════════════════════════════════════════════
 
 def check_magnitude(facts, history_fn=None):
-    """两道:(a) 按 unit 的绝对区间;(b) 与历史同名 Fact 的跳变比。
+    """Two passes: an absolute range per unit, and a jump against own history.
 
-    history_fn(name, entity) -> [float, ...]  历史值,由 store 提供。
-    传 None 就只做 (a)。跳变基线用中位数,抗单点异常。
+    history_fn(name, entity) -> [float, ...] supplies past values, normally from
+    the store. Passing None runs the absolute check only. The jump baseline is a
+    median so a single outlier cannot move it.
     """
     issues = []
     for f in facts:
@@ -149,13 +159,15 @@ def check_magnitude(facts, history_fn=None):
         if hi is not None and av > hi:
             issues.append(_issue(
                 "warning", "magnitude", f,
-                f"绝对值 {av:g} 超出 unit={f.unit} 的合理上界 {hi:g} —— 多半是单位错或取错字段",
+                f"absolute value {av:g} exceeds the plausible ceiling {hi:g} for "
+                f"unit={f.unit}, likely a unit error or the wrong field",
                 bound="upper", limit=hi,
             ))
         elif lo is not None and av != 0 and av < lo:
             issues.append(_issue(
                 "warning", "magnitude", f,
-                f"绝对值 {av:g} 低于 unit={f.unit} 的合理下界 {lo:g} —— 检查是否单位缩放错",
+                f"absolute value {av:g} is below the plausible floor {lo:g} for "
+                f"unit={f.unit}, check the scaling",
                 bound="lower", limit=lo,
             ))
 
@@ -164,6 +176,8 @@ def check_magnitude(facts, history_fn=None):
         try:
             hist = [abs(v) for v in (history_fn(f.name, f.entity) or []) if v is not None]
         except Exception:
+            _log.warning("Fact history lookup failed for %s, "
+                         "jump detection skipped for this Fact", f.name, exc_info=True)
             hist = []
         hist = [v for v in hist if v > 0]
         if len(hist) < JUMP_MIN_HISTORY:
@@ -174,36 +188,40 @@ def check_magnitude(facts, history_fn=None):
         if av > base * JUMP_RATIO_THRESHOLD:
             issues.append(_issue(
                 "warning", "magnitude", f,
-                f"较历史中位数跳变 {av/base:.1f}x (历史中位 {base:g},n={len(hist)}) "
-                f"—— 超过 {JUMP_RATIO_THRESHOLD:g}x 阈值",
+                f"jumped {av/base:.1f}x against its own history "
+                f"(median {base:g}, n={len(hist)}), past the {JUMP_RATIO_THRESHOLD:g}x threshold",
                 jump_ratio=round(av / base, 2), history_median=base, history_n=len(hist),
             ))
     return issues
 
 
 # ══════════════════════════════════════════════════════════════════
-#  verify —— 裁决入口
+#  verify -- adjudication entry point
 # ══════════════════════════════════════════════════════════════════
 
 def verify(facts, raise_on_error=True, record=True, ref=None):
-    """跑全部核查,返回裁决 report。
+    """Run every check and return the adjudication report.
 
-    facts        Fact 列表(或 dict 列表,自动转)
-    raise_on_error  True 时,有 error 级问题就 raise FactCheckError
-    record       True 时把通过的 Fact 落 fact_log(magnitude 的历史基线靠它长)
-    ref          比较基准时间,测试用
+    facts           Facts, or dicts that convert to them
+    raise_on_error  raise FactCheckError when any error-level issue is found
+    record          persist passing Facts to the fact_log, which is what grows
+                    the magnitude baseline over time
+    ref             comparison time, for tests
 
-    返回 {"ok", "errors", "warnings", "checked", "facts"}
+    Returns {"ok", "errors", "warnings", "checked", "facts"}
     """
     facts = [f if isinstance(f, Fact) else Fact.from_dict(f) for f in facts]
 
-    # store 只是可选依赖:拿不到就退化成「只做绝对区间,不做跳变检测」,
-    # 绝不因为落库层出问题而让核查本身跑不起来。
+    # The store is an optional dependency. If it cannot be reached, degrade to
+    # absolute-range checking rather than letting a storage problem take down
+    # verification itself.
     try:
         from . import store as _store
         store = _store
         history_fn = _store.history
     except Exception:
+        _log.warning("Fact store unavailable, magnitude jump detection disabled",
+                     exc_info=True)
         store = None
         history_fn = None
 
@@ -215,13 +233,14 @@ def verify(facts, raise_on_error=True, record=True, ref=None):
     errors = [i for i in issues if i["level"] == "error"]
     warnings = [i for i in issues if i["level"] == "warning"]
 
-    # 只落通过硬停的 Fact —— 陈旧数据不该污染 magnitude 的历史基线
+    # Only record Facts that cleared the hard stop: stale data must not pollute
+    # the baseline that magnitude checking is judged against.
     if record and store is not None:
         bad = {i["fact"] for i in errors}
-        try:
-            store.record_many([f for f in facts if f.name not in bad])
-        except Exception:
-            pass  # 落库永不阻塞裁决
+        keepers = [f for f in facts if f.name not in bad]
+        if keepers and store.record_many(keepers) == 0:
+            _log.warning("Fact store accepted no rows, the magnitude baseline "
+                         "is not being updated")
 
     report = {
         "ok": not errors,
@@ -236,13 +255,23 @@ def verify(facts, raise_on_error=True, record=True, ref=None):
 
 
 def format_report(report) -> str:
-    """人读的裁决输出。"""
+    """Render an adjudication report for a human.
+
+    ASCII only, deliberately: this gets printed to whatever console the host
+    happens to have, and a non-UTF-8 Windows terminal raises UnicodeEncodeError
+    on emoji, which would turn the verifier itself into the crash.
+    """
     lines = []
     n, ne, nw = report["checked"], len(report["errors"]), len(report["warnings"])
-    head = "✅ 全部通过" if report["ok"] and not nw else ("⛔ 有硬停" if ne else "⚠️ 有警告")
-    lines.append(f"{head} — 核查 {n} 项,硬停 {ne},警告 {nw}")
+    if report["ok"] and not nw:
+        head = "[OK] all clear"
+    elif ne:
+        head = "[STOP] hard stops present"
+    else:
+        head = "[WARN] warnings present"
+    lines.append(f"{head} - checked {n}, hard stops {ne}, warnings {nw}")
     for i in report["errors"]:
-        lines.append(f"  ⛔ [{i['check']}] {i['fact']} = {i['value']}: {i['message']}")
+        lines.append(f"  [STOP] [{i['check']}] {i['fact']} = {i['value']}: {i['message']}")
     for i in report["warnings"]:
-        lines.append(f"  ⚠️ [{i['check']}] {i['fact']} = {i['value']}: {i['message']}")
+        lines.append(f"  [WARN] [{i['check']}] {i['fact']} = {i['value']}: {i['message']}")
     return "\n".join(lines)

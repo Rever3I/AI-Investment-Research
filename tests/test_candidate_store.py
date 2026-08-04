@@ -1,8 +1,3 @@
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
 import pytest
 
 from skills._lib.data.candidate_store import (
@@ -10,6 +5,7 @@ from skills._lib.data.candidate_store import (
     list_candidates,
     save_candidate,
 )
+from skills._lib.data.db_init import init_db
 from skills._lib.data.schema import Candidate
 
 
@@ -34,6 +30,31 @@ def _candidate(**overrides):
 
 def test_save_returns_a_row_id(db):
     assert save_candidate(_candidate(), db_path=db) > 0
+
+
+def test_save_stamps_the_row_id_onto_the_record(db):
+    # research-thesis needs this id to build a Thesis; without it the layer
+    # handoff this module exists for cannot be performed.
+    candidate = _candidate()
+    row_id = save_candidate(candidate, db_path=db)
+    assert candidate.id == row_id
+
+
+def test_retrieved_candidates_carry_their_id(db):
+    row_id = save_candidate(_candidate(), db_path=db)
+    assert get_candidate(row_id, db_path=db).id == row_id
+    assert list_candidates(db_path=db)[0].id == row_id
+
+
+def test_reads_do_not_create_a_database(tmp_path):
+    # A typo'd path must surface as an error, not as an empty list plus a stray
+    # database file the user then has to find and delete.
+    missing = tmp_path / "typo_reserach.db"
+    with pytest.raises(FileNotFoundError):
+        list_candidates(db_path=missing)
+    with pytest.raises(FileNotFoundError):
+        get_candidate(1, db_path=missing)
+    assert not missing.exists()
 
 
 def test_save_creates_the_schema_if_absent(db):
@@ -89,7 +110,8 @@ def test_list_returns_newest_first(db):
     assert [c.ticker for c in list_candidates(db_path=db)] == ["SECOND", "FIRST"]
 
 
-def test_list_on_empty_database_returns_empty(db):
+def test_list_on_an_initialised_but_empty_database_returns_empty(db):
+    init_db(db)
     assert list_candidates(db_path=db) == []
 
 

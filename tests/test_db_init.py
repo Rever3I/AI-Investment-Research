@@ -1,9 +1,5 @@
 import sqlite3
-import sys
-import tempfile
 from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from skills._lib.data.db_init import DEFAULT_DB_PATH, init_db
 

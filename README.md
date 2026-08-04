@@ -28,14 +28,33 @@ or from a macro thesis.
   you do, intake is a general open search.
 - **Pure stdlib.** No pip dependencies, so the skills run wherever Python 3.10+ does.
 
-## Status
+## Installing
 
-Foundation build: shared record schemas, SQLite storage, the Fact contract, and
-the `research-intake` layer. The remaining layers and the market data adapters
-(SEC EDGAR, Wind, FRED, news/alt-data) land in subsequent releases.
+The skills import a shared library (`skills/_lib/`), so the repo root has to be
+importable wherever your AI host runs Python. Clone it and install in place:
+
+```bash
+git clone https://github.com/Rever3I/ai-investment-research.git
+cd ai-investment-research
+pip install -e .
+```
+
+Copying a single `skills/<layer>/` directory into a host's skills folder is not
+enough on its own — the layer's code refers to `skills._lib`, which has to come
+along. Point your host at this repo, or install it as above.
+
+Records land in `db/research.db`, created on first write.
 
 ## Running the tests
 
 ```bash
-python -m pytest tests/ -v
+python -m pytest -q
 ```
+
+## Status
+
+Foundation build: shared record schemas, SQLite storage, the Fact contract, and
+the `research-intake` layer. The remaining layers and the market data adapters
+(SEC EDGAR, Wind, FRED, news/alt-data) land in subsequent releases. Saved
+screening profiles are specified but not yet implemented — intake currently runs
+a general search.

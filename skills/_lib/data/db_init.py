@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS candidates (
     discovered_at   TEXT NOT NULL,
     screened        INTEGER NOT NULL DEFAULT 0,
     profile_used    TEXT NOT NULL DEFAULT '',
-    created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%S+00:00','now'))
 );
 CREATE INDEX IF NOT EXISTS idx_candidates_ticker ON candidates(ticker);
 CREATE INDEX IF NOT EXISTS idx_candidates_market ON candidates(market);
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS theses (
     falsifiers_json     TEXT NOT NULL DEFAULT '[]',
     data_sources_json   TEXT NOT NULL DEFAULT '[]',
     authored_at         TEXT NOT NULL DEFAULT '',
-    created_at          TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at          TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%S+00:00','now'))
 );
 CREATE INDEX IF NOT EXISTS idx_theses_candidate ON theses(candidate_id);
 
@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS valuations (
     discount_rate_source    TEXT NOT NULL DEFAULT '',
     html_artifact_path      TEXT NOT NULL DEFAULT '',
     valued_at               TEXT NOT NULL DEFAULT '',
-    created_at              TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at              TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%S+00:00','now'))
 );
 CREATE INDEX IF NOT EXISTS idx_valuations_thesis ON valuations(thesis_id);
 
@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS verdicts (
     votes_json      TEXT NOT NULL DEFAULT '[]',
     dissent_map     TEXT NOT NULL DEFAULT '',
     authored_at     TEXT NOT NULL DEFAULT '',
-    created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%S+00:00','now'))
 );
 CREATE INDEX IF NOT EXISTS idx_verdicts_valuation ON verdicts(valuation_id);
 
@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS portfolios (
     recommended_position_pct    REAL NOT NULL,
     kelly_inputs_json           TEXT NOT NULL DEFAULT '{}',
     sized_at                    TEXT NOT NULL DEFAULT '',
-    created_at                  TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at                  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%S+00:00','now'))
 );
 CREATE INDEX IF NOT EXISTS idx_portfolios_valuation ON portfolios(valuation_id);
 
@@ -91,10 +91,14 @@ CREATE TABLE IF NOT EXISTS sellchecks (
     trigger         TEXT NOT NULL,
     diff_summary    TEXT NOT NULL,
     rechecked_at    TEXT NOT NULL DEFAULT '',
-    created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%S+00:00','now'))
 );
 CREATE INDEX IF NOT EXISTS idx_sellchecks_thesis ON sellchecks(thesis_id);
 
+-- UNIQUE(key, domain, as_of) so an adapter re-fetching the same observation
+-- replaces it rather than appending. Without it the obvious INSERT-on-miss
+-- accumulates duplicate rows, and a lookup that forgets to order by recency
+-- hands back the oldest value — a stale price flowing toward the Fact contract.
 CREATE TABLE IF NOT EXISTS market_cache (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     key         TEXT NOT NULL,
@@ -103,7 +107,8 @@ CREATE TABLE IF NOT EXISTS market_cache (
     as_of       TEXT NOT NULL,
     source      TEXT NOT NULL,
     freq        TEXT NOT NULL,
-    cached_at   TEXT NOT NULL DEFAULT (datetime('now'))
+    cached_at   TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%S+00:00','now')),
+    UNIQUE(key, domain, as_of)
 );
 CREATE INDEX IF NOT EXISTS idx_market_cache_key ON market_cache(key, domain);
 
@@ -113,7 +118,7 @@ CREATE TABLE IF NOT EXISTS calibration_memory (
     draft_value     TEXT NOT NULL,
     actual_value    TEXT NOT NULL,
     delta_note      TEXT NOT NULL DEFAULT '',
-    recorded_at     TEXT NOT NULL DEFAULT (datetime('now'))
+    recorded_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%S+00:00','now'))
 );
 CREATE INDEX IF NOT EXISTS idx_calibration_subsystem ON calibration_memory(subsystem);
 """

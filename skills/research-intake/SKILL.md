@@ -36,10 +36,11 @@ saved criterion.
 ## The two entry paths
 
 **Screen-first** — the user wants candidates out of a universe ("find me some
-cheap quality names in industrials"). Check `config/screen-profiles/` for a
-saved profile. If one applies, use it and record which. If the directory is
-empty, search generally and mention once, without nagging: they can save a
-criteria profile any time, and until then this is a general search.
+cheap quality names in industrials"). Saved criteria profiles are not
+implemented yet: there is no loader and no defined file format, so run a general
+search and set `screened=False`. Do not improvise a profile format on the spot —
+two users inventing different shapes is exactly what the real loader will have
+to break later. Mention once, without nagging, that saved profiles are coming.
 
 **Thesis-first** — the user states a view ("grid interconnect queues are the
 real ceiling on AI capex") and wants the names that express it. Reason from the
@@ -60,23 +61,23 @@ from skills._lib.data.candidate_store import save_candidate
 candidate = Candidate(
     ticker="NVDA",
     entry_path="screen",              # "screen" or "thesis"
-    source_note="deep-value profile", # or the thesis text, verbatim, if thesis-first
-    market="US",                      # "US" or "CN"
+    source_note="general search",     # or the thesis text, verbatim, if thesis-first
+    market="US",                      # any market string the user's adapters support
     raw_rationale="One sentence on why this name surfaced.",
     discovered_at="2026-08-04T12:00:00Z",
-    screened=True,                    # True only if a saved profile was applied
-    profile_used="deep-value",        # the profile name, else ""
 )
-row_id = save_candidate(candidate)
+row_id = save_candidate(candidate)    # also stamps candidate.id
 ```
 
-Two fields carry more weight than they look:
+Three fields carry more weight than they look:
 
 - `screened=False` with an empty `profile_used` is a complete, normal record for
   a general search. It is not an unfinished one — do not invent a profile name
   to fill the gap.
 - `source_note` on the thesis path holds the user's thesis text verbatim. Later
   layers compare against it, so paraphrasing it loses the thing being tested.
+- `id` is None until you save. After `save_candidate` it holds the row id, which
+  is what `research-thesis` needs to attach its work to this candidate.
 
 ## Numbers
 
@@ -88,7 +89,7 @@ implausible units or magnitudes.
 from skills._lib.factcontract import Fact, verify
 
 verify([Fact(name="NVDA_chg_pct", value=-3.39, unit="pct", freq="daily",
-             as_of="2026-08-04T20:15:00Z", source="yfinance", entity="NVDA")])
+             as_of="2026-08-04T20:15:00Z", source="sec-xbrl", entity="NVDA")])
 ```
 
 Do not quote a price, a percentage, or a multiple from memory or from an article

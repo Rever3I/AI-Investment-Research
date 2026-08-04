@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-investment-research"
+version = "0.1.0"
+description = "A portable, layered investment-research pipeline delivered as SKILL.md packages"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+test = ["pytest>=7"]
+
+[tool.setuptools]
+packages = [
+    "skills",
+    "skills._lib",
+    "skills._lib.data",
+    "skills._lib.factcontract",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

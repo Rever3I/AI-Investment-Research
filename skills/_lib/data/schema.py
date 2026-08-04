@@ -13,7 +13,6 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 
 ENTRY_PATHS = ("screen", "thesis")
-MARKETS = ("US", "CN")
 SIZING_METHODS = ("half_kelly", "full_kelly", "fixed_pct", "custom")
 DEBATE_MODES = ("checklist", "persona_debate")
 DIFF_VERDICTS = ("facts_changed", "judgment_changed", "still_holds")
@@ -75,21 +74,29 @@ class Candidate(_Record):
     `screened` is True only when a saved criteria profile was actually applied.
     A candidate from a general open search is a normal, complete record — an
     empty `profile_used` is not an unfinished one.
+
+    `market` is any non-empty string the user's data adapters understand. There
+    is no whitelist: a hard-coded set of markets would be exactly the kind of
+    built-in restriction this pipeline promises not to impose.
+
+    `id` is None until the record is persisted, then carries the row id so the
+    next layer can reference this candidate.
     """
 
     ticker: str
     entry_path: str          # "screen" | "thesis"
     source_note: str         # profile name, or the thesis text if thesis-first
-    market: str              # "US" | "CN"
+    market: str              # e.g. "US", "CN", "DE" — whatever the adapters support
     raw_rationale: str
     discovered_at: str
     screened: bool = False
     profile_used: str = ""
+    id: int = None
 
     def __post_init__(self):
         _require(self.ticker, "ticker", "Candidate")
         _require_choice(self.entry_path, ENTRY_PATHS, "entry_path", "Candidate")
-        _require_choice(self.market, MARKETS, "market", "Candidate")
+        _require(self.market, "market", "Candidate")
         _require(self.raw_rationale, "raw_rationale", "Candidate")
         self.discovered_at = _parse_ts(self.discovered_at, "Candidate", "discovered_at")
 

@@ -1,8 +1,3 @@
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
 import pytest
 
 from skills._lib.data.schema import (
@@ -48,12 +43,23 @@ def test_candidate_rejects_missing_ticker():
         )
 
 
-def test_candidate_rejects_unknown_market():
+def test_candidate_rejects_empty_market():
     with pytest.raises(SchemaError):
         Candidate(
             ticker="NVDA", entry_path="screen", source_note="x",
-            market="Mars", raw_rationale="x", discovered_at="2026-08-04T12:00:00Z",
+            market="", raw_rationale="x", discovered_at="2026-08-04T12:00:00Z",
         )
+
+
+def test_candidate_accepts_any_market_the_user_configures():
+    # No whitelist: a European or Japanese ticker must not be rejected by the
+    # record contract just because the reference build shipped with US and CN.
+    for market in ("DE", "JP", "LSE"):
+        c = Candidate(
+            ticker="SIE.DE", entry_path="thesis", source_note="grid capex thesis",
+            market=market, raw_rationale="x", discovered_at="2026-08-04T12:00:00Z",
+        )
+        assert c.market == market
 
 
 def test_candidate_rejects_bad_timestamp():

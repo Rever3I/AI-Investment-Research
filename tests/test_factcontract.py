@@ -1,34 +1,17 @@
-import sys
 from datetime import timedelta
 from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import pytest
 
 from skills._lib.factcontract import Fact, FactCheckError, FactError, verify
 from skills._lib.factcontract.fact import now_utc
-
-
-@pytest.fixture(autouse=True)
-def isolated_store(monkeypatch, tmp_path):
-    """Point the fact_log at a scratch DB so tests never touch the real one.
-
-    Autouse because verify() reaches the store even with record=False — it reads
-    history for jump detection, and that read creates the database file. Without
-    this on every test, a plain verify() call would write into the repo's own db/.
-    """
-    from skills._lib.factcontract import store as store_mod
-
-    monkeypatch.setattr(store_mod, "DB_PATH", tmp_path / "research.db")
-    monkeypatch.setattr(store_mod, "_initialised", False)
-    return store_mod
+from skills._lib.factcontract.store import DB_PATH as _UNPATCHED_DB_PATH
 
 
 def _fresh(**overrides):
     kwargs = dict(
         name="AAPL_chg_pct", value=1.2, unit="pct", freq="intraday",
-        as_of=now_utc().isoformat(), source="yfinance", entity="AAPL",
+        as_of=now_utc().isoformat(), source="sec-xbrl", entity="AAPL",
     )
     kwargs.update(overrides)
     return Fact(**kwargs)
@@ -120,42 +103,38 @@ def test_implausible_magnitude_warns_but_passes():
 
 # ── the store: history is what makes jump detection possible ──────
 
-def test_store_roundtrips_recorded_values(isolated_store):
+def test_store_roundtrips_recorded_values(isolated_fact_store):
     f = _fresh(name="NVDA_chg_pct", value=3.5, unit="pct", freq="daily", entity="NVDA")
-    assert isolated_store.record_many([f]) == 1
-    assert isolated_store.history("NVDA_chg_pct", "NVDA") == [3.5]
+    assert isolated_fact_store.record_many([f]) == 1
+    assert isolated_fact_store.history("NVDA_chg_pct", "NVDA") == [3.5]
 
 
-def test_store_writes_to_this_repos_database(isolated_store, tmp_path):
-    isolated_store.record_many([_fresh()])
-    assert (tmp_path / "research.db").exists()
+def test_store_creates_its_database_on_first_write(isolated_fact_store):
+    isolated_fact_store.record_many([_fresh()])
+    assert isolated_fact_store.DB_PATH.exists()
 
 
 def test_default_store_path_resolves_inside_repo():
-    # Read the unpatched module-level default, which the autouse fixture overrides.
-    import importlib
-
-    store_mod = importlib.import_module("skills._lib.factcontract.store")
-    default = Path(store_mod.__file__).resolve().parents[3] / "db" / "research.db"
+    # Captured at import time, before the autouse fixture repoints it.
     repo_root = Path(__file__).resolve().parent.parent
-    assert default == repo_root / "db" / "research.db"
+    assert _UNPATCHED_DB_PATH == repo_root / "db" / "research.db"
 
 
-def test_verify_records_passing_facts(isolated_store):
+def test_verify_records_passing_facts(isolated_fact_store):
     verify([_fresh(name="MSFT_chg_pct", value=1.1, entity="MSFT")], record=True)
-    assert isolated_store.history("MSFT_chg_pct", "MSFT") == [1.1]
+    assert isolated_fact_store.history("MSFT_chg_pct", "MSFT") == [1.1]
 
 
-def test_verify_does_not_record_facts_that_hard_stopped(isolated_store):
+def test_verify_does_not_record_facts_that_hard_stopped(isolated_fact_store):
     stale = _fresh(name="STALE_pct", value=1.1, entity="X", as_of="2020-01-01T00:00:00Z")
     verify([stale], raise_on_error=False, record=True)
-    assert isolated_store.history("STALE_pct", "X") == []
+    assert isolated_fact_store.history("STALE_pct", "X") == []
 
 
-def test_jump_against_history_warns(isolated_store):
+def test_jump_against_history_warns(isolated_fact_store):
     # Establish a baseline, then verify a value an order of magnitude above it.
     baseline = [_fresh(name="JUMP_pct", value=2.0, entity="X") for _ in range(5)]
-    isolated_store.record_many(baseline)
+    isolated_fact_store.record_many(baseline)
 
     report = verify([_fresh(name="JUMP_pct", value=80.0, entity="X")],
                     record=False)
