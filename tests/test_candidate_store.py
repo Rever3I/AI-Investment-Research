@@ -57,6 +57,32 @@ def test_reads_do_not_create_a_database(tmp_path):
     assert not missing.exists()
 
 
+def test_reads_report_clearly_when_the_fact_contract_made_the_database_first(db):
+    """The Fact contract shares this database and creates it holding only
+    fact_log. A read that only checked for the file would sail past that and die
+    on the SELECT with a bare "no such table" — on a fresh clone, in the order
+    the shipped SKILL.md tells the host to work."""
+    from skills._lib.factcontract import store as fact_store
+
+    fact_store.init_db(db)
+    assert db.exists()
+
+    with pytest.raises(FileNotFoundError):
+        list_candidates(db_path=db)
+    with pytest.raises(FileNotFoundError):
+        get_candidate(1, db_path=db)
+
+
+def test_saving_works_after_the_fact_contract_made_the_database(db):
+    """Writes must still succeed in that same situation, adding the candidates
+    table alongside fact_log."""
+    from skills._lib.factcontract import store as fact_store
+
+    fact_store.init_db(db)
+    row_id = save_candidate(_candidate(), db_path=db)
+    assert get_candidate(row_id, db_path=db).ticker == "NVDA"
+
+
 def test_save_creates_the_schema_if_absent(db):
     # No explicit init_db() call — persisting must work on a fresh install.
     save_candidate(_candidate(), db_path=db)

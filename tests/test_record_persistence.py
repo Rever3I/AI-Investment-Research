@@ -189,9 +189,47 @@ def test_sellcheck_survives_its_keyword_named_column(conn):
     assert Sellcheck.from_dict(dict(row)) == original
 
 
-def test_created_at_defaults_are_iso_8601_utc(conn):
-    """Every record timestamp normalizes to ISO 8601 UTC; the storage layer's own
-    defaults must match, or sorting across the two formats silently misorders."""
+_TIMESTAMPED_TABLES = (
+    ("candidates",
+     "INSERT INTO candidates (ticker, entry_path, market, discovered_at) "
+     "VALUES ('NVDA', 'screen', 'US', '2026-08-04T12:00:00+00:00')"),
+    ("theses",
+     "INSERT INTO theses (candidate_id) VALUES (1)"),
+    ("valuations",
+     "INSERT INTO valuations (thesis_id) VALUES (1)"),
+    ("verdicts",
+     "INSERT INTO verdicts (valuation_id, mode) VALUES (1, 'checklist')"),
+    ("portfolios",
+     "INSERT INTO portfolios (valuation_id, sizing_method, recommended_position_pct) "
+     "VALUES (1, 'half_kelly', 1.0)"),
+    ("sellchecks",
+     "INSERT INTO sellchecks (thesis_id, trigger, diff_summary) "
+     "VALUES (1, 'user_initiated', 'still_holds')"),
+)
+
+
+@pytest.mark.parametrize("table,insert_sql", _TIMESTAMPED_TABLES)
+def test_created_at_defaults_are_iso_8601_utc(conn, table, insert_sql):
+    """Record timestamps normalize to ISO 8601 UTC; the storage layer's own
+    defaults must match, or sorting across the two formats silently misorders.
+
+    Every table is checked, not just one: a default that drifts back on any of
+    them reintroduces the same incomparable-format bug in that corner.
+    """
+    conn.execute(insert_sql)
+    conn.commit()
+    created_at = conn.execute(f"SELECT created_at FROM {table}").fetchone()[0]
+
+    assert "T" in created_at, f"{table}: expected ISO 8601, got {created_at!r}"
+    assert created_at.endswith("+00:00"), f"{table}: expected a UTC offset, got {created_at!r}"
+
+
+def test_created_at_defaults_are_actually_utc_not_local_time(conn):
+    """A local timestamp wearing a +00:00 suffix passes a format check while
+    being hours wrong, so compare the stored value against real UTC."""
+    from datetime import datetime, timezone
+
+    before = datetime.now(timezone.utc).replace(microsecond=0)
     conn.execute(
         "INSERT INTO candidates (ticker, entry_path, market, discovered_at) "
         "VALUES ('NVDA', 'screen', 'US', '2026-08-04T12:00:00+00:00')"
@@ -199,8 +237,12 @@ def test_created_at_defaults_are_iso_8601_utc(conn):
     conn.commit()
     created_at = conn.execute("SELECT created_at FROM candidates").fetchone()[0]
 
-    assert "T" in created_at, f"expected ISO 8601, got {created_at!r}"
-    assert created_at.endswith("+00:00"), f"expected a UTC offset, got {created_at!r}"
+    stored = datetime.fromisoformat(created_at)
+    drift = abs((stored - before).total_seconds())
+    assert drift < 120, (
+        f"created_at {created_at!r} is {drift:.0f}s from UTC now — "
+        f"the default is probably recording local time"
+    )
 
 
 def test_market_cache_replaces_rather_than_duplicates_an_observation(conn):

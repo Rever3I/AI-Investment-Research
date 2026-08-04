@@ -20,10 +20,11 @@ import sqlite3
 from contextlib import closing
 from pathlib import Path
 
+from ..paths import default_db_path
+
 _log = logging.getLogger(__name__)
 
-# store.py lives at <repo>/skills/_lib/factcontract/store.py
-DB_PATH = Path(__file__).resolve().parents[3] / "db" / "research.db"
+DB_PATH = default_db_path()
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS fact_log (

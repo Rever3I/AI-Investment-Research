@@ -8,6 +8,11 @@ than in conversation is what lets the two layers run in separate sessions.
 Reads deliberately do not create the database. A misconfigured path should
 surface as "no such database" rather than quietly returning an empty list and
 leaving a stray database file behind.
+
+They check for the `candidates` table rather than for the file, because the
+Fact contract shares this database and creates it on first use with only
+`fact_log` in it. A file-existence check would pass there and then fail on the
+SELECT with a bare "no such table".
 """
 
 import sqlite3
@@ -29,14 +34,21 @@ def _resolve(db_path) -> Path:
 
 
 def _open_existing(db_path) -> Path:
-    """Resolve a path that must already hold a database."""
+    """Resolve a path that must already hold a candidates table."""
     path = _resolve(db_path)
-    if not path.exists():
+    if not path.exists() or not _has_candidates_table(path):
         raise FileNotFoundError(
-            f"No research database at {path}. Save a candidate first, "
-            f"or point db_path at an existing database."
+            f"No candidates have been saved to {path} yet. Run research-intake "
+            f"first, or point db_path at a database that has them."
         )
     return path
+
+
+def _has_candidates_table(path: Path) -> bool:
+    with closing(_connect(path)) as conn:
+        return conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='candidates'"
+        ).fetchone() is not None
 
 
 def _to_candidate(row: sqlite3.Row) -> Candidate:

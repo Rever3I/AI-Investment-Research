@@ -17,8 +17,9 @@ the Fact contract can run standalone, without this module having been imported.
 import sqlite3
 from pathlib import Path
 
-# db_init.py lives at <repo>/skills/_lib/data/db_init.py
-DEFAULT_DB_PATH = Path(__file__).resolve().parents[3] / "db" / "research.db"
+from ..paths import default_db_path
+
+DEFAULT_DB_PATH = default_db_path()
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS candidates (
@@ -98,7 +99,7 @@ CREATE INDEX IF NOT EXISTS idx_sellchecks_thesis ON sellchecks(thesis_id);
 -- UNIQUE(key, domain, as_of) so an adapter re-fetching the same observation
 -- replaces it rather than appending. Without it the obvious INSERT-on-miss
 -- accumulates duplicate rows, and a lookup that forgets to order by recency
--- hands back the oldest value — a stale price flowing toward the Fact contract.
+-- hands back the oldest value: a stale price flowing toward the Fact contract.
 CREATE TABLE IF NOT EXISTS market_cache (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     key         TEXT NOT NULL,

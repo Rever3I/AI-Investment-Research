@@ -12,6 +12,11 @@ dependencies = []
 [project.optional-dependencies]
 test = ["pytest>=7"]
 
+# The skill directories (skills/research-intake/ and its siblings) hold SKILL.md
+# rather than Python, and their hyphenated names are not importable, so they are
+# not packages. Install this repo from a clone — `pip install -e .` puts the
+# shared library on the path while the SKILL.md files stay where a host can read
+# them. A built wheel would carry the library without the skills it serves.
 [tool.setuptools]
 packages = [
     "skills",
