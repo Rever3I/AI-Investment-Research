@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+db/research.db
+db/*.db-journal
+db/*.db-wal
+db/*.db-shm
+.superpowers/
