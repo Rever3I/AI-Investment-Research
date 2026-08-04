@@ -1,0 +1,99 @@
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+import pytest
+
+from skills._lib.data.candidate_store import (
+    get_candidate,
+    list_candidates,
+    save_candidate,
+)
+from skills._lib.data.schema import Candidate
+
+
+@pytest.fixture
+def db(tmp_path):
+    """A scratch database path — save_candidate creates the schema on demand."""
+    return tmp_path / "research.db"
+
+
+def _candidate(**overrides):
+    kwargs = dict(
+        ticker="NVDA",
+        entry_path="screen",
+        source_note="general search",
+        market="US",
+        raw_rationale="AI capex beneficiary",
+        discovered_at="2026-08-04T12:00:00Z",
+    )
+    kwargs.update(overrides)
+    return Candidate(**kwargs)
+
+
+def test_save_returns_a_row_id(db):
+    assert save_candidate(_candidate(), db_path=db) > 0
+
+
+def test_save_creates_the_schema_if_absent(db):
+    # No explicit init_db() call — persisting must work on a fresh install.
+    save_candidate(_candidate(), db_path=db)
+    assert db.exists()
+
+
+def test_saved_candidate_round_trips(db):
+    original = _candidate(screened=True, profile_used="deep-value")
+    row_id = save_candidate(original, db_path=db)
+    assert get_candidate(row_id, db_path=db) == original
+
+
+def test_screened_flag_survives_the_round_trip(db):
+    row_id = save_candidate(_candidate(screened=False), db_path=db)
+    # SQLite stores booleans as integers; it must come back as a bool, not 0.
+    assert get_candidate(row_id, db_path=db).screened is False
+
+
+def test_thesis_path_candidate_round_trips(db):
+    original = _candidate(
+        entry_path="thesis",
+        source_note="Grid interconnect queues are the real AI capex ceiling.",
+        raw_rationale="Sells the transformers that queue is waiting on.",
+    )
+    row_id = save_candidate(original, db_path=db)
+    assert get_candidate(row_id, db_path=db) == original
+
+
+def test_get_candidate_returns_none_for_unknown_id(db):
+    save_candidate(_candidate(), db_path=db)
+    assert get_candidate(9999, db_path=db) is None
+
+
+def test_list_returns_every_saved_candidate(db):
+    save_candidate(_candidate(ticker="NVDA"), db_path=db)
+    save_candidate(_candidate(ticker="AVGO"), db_path=db)
+    assert len(list_candidates(db_path=db)) == 2
+
+
+def test_list_filters_by_market(db):
+    save_candidate(_candidate(ticker="NVDA", market="US"), db_path=db)
+    save_candidate(_candidate(ticker="000660.SZ", market="CN"), db_path=db)
+
+    assert [c.ticker for c in list_candidates(market="US", db_path=db)] == ["NVDA"]
+    assert [c.ticker for c in list_candidates(market="CN", db_path=db)] == ["000660.SZ"]
+
+
+def test_list_returns_newest_first(db):
+    save_candidate(_candidate(ticker="FIRST"), db_path=db)
+    save_candidate(_candidate(ticker="SECOND"), db_path=db)
+    assert [c.ticker for c in list_candidates(db_path=db)] == ["SECOND", "FIRST"]
+
+
+def test_list_on_empty_database_returns_empty(db):
+    assert list_candidates(db_path=db) == []
+
+
+def test_list_honours_limit(db):
+    for ticker in ("A", "B", "C"):
+        save_candidate(_candidate(ticker=ticker), db_path=db)
+    assert len(list_candidates(db_path=db, limit=2)) == 2
