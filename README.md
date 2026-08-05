@@ -1,5 +1,7 @@
 # AI Investment Research
 
+English · [简体中文](README.zh-CN.md)
+
 An open, portable investment-research pipeline delivered as SKILL.md packages —
 not locked to Claude Code, not a hosted service. Install the skills into any
 SKILL.md-compatible AI host, configure your own market/data access, and run
@@ -43,7 +45,31 @@ Copying a single `skills/<layer>/` directory into a host's skills folder is not
 enough on its own — the layer's code refers to `skills._lib`, which has to come
 along. Point your host at this repo, or install it as above.
 
-Records land in `db/research.db`, created on first write.
+Records land in `db/research.db`, created on first write. Set `AI_RESEARCH_DB`
+to put it somewhere else.
+
+## Configuration
+
+`config/research-profile.json`:
+
+```json
+{
+  "output_language": "en",
+  "sizing_method": "half_kelly",
+  "debate_enabled": false
+}
+```
+
+- `output_language` — **the language your research is written in** (thesis prose,
+  valuation commentary, conclusions). Set it to `zh-CN` and the same code
+  produces Chinese reports; any language tag works, there is no whitelist. It
+  does not change the code's own logs and error messages, which stay English so
+  a traceback is searchable by anyone.
+- `sizing_method` — `half_kelly`, `full_kelly`, `fixed_pct`, or `custom`
+- `debate_enabled` — whether the optional dissent layer participates
+
+Point `AI_RESEARCH_PROFILE` at a different file to use another profile. Every
+setting has a working default, so a missing or partial file is a normal state.
 
 ## Running the tests
 

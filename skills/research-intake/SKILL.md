@@ -97,6 +97,19 @@ of unknown vintage. Fetch it, declare it, verify it.
 
 ## Output
 
+Write in the user's configured language:
+
+```python
+from skills._lib.config import output_language
+
+lang = output_language()   # "en" by default; "zh-CN", "ja", anything the model reads
+```
+
+Everything the user reads — the rationale, the summary, your commentary — goes
+in that language. Tickers, field names, and the stored record itself stay as
+they are: `entry_path` is `"screen"` in every language, so downstream layers
+keep working regardless of what the reader sees.
+
 Present the candidates with their one-line rationale, and say which entry path
 produced them — for screen-first, name the profile used, or say plainly that
 none was configured and this was a general search.
