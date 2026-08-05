@@ -65,11 +65,17 @@ to put it somewhere else.
   produces Chinese reports; any language tag works, there is no whitelist. It
   does not change the code's own logs and error messages, which stay English so
   a traceback is searchable by anyone.
-- `sizing_method` — `half_kelly`, `full_kelly`, `fixed_pct`, or `custom`
-- `debate_enabled` — whether the optional dissent layer participates
+- `sizing_method` — `half_kelly`, `full_kelly`, `fixed_pct`, or `custom` (read by
+  research-portfolio, which ships later)
+- `debate_enabled` — whether the optional dissent layer participates (read by
+  research-debate, which ships later)
+
+JSON rather than YAML: this project ships no third-party dependencies, and the
+standard library has no YAML parser.
 
 Point `AI_RESEARCH_PROFILE` at a different file to use another profile. Every
-setting has a working default, so a missing or partial file is a normal state.
+setting has a working default, so a missing, partial, or even damaged file falls
+back with a warning rather than stopping the pipeline.
 
 ## Running the tests
 

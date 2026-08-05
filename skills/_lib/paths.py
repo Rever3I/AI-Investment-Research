@@ -1,16 +1,18 @@
 #!/usr/bin/env python
-"""Where the research database lives.
+"""Where this project's files live.
 
-Both storage layers resolve through here so there is exactly one answer, and so
-that answer survives being installed rather than cloned.
+Every module resolves through here so there is one answer, and so that answer
+survives being installed rather than cloned. Two modules each deriving a
+repo-relative path independently is how one of them quietly keeps working while
+the other writes into site-packages.
 
-Resolution order:
-  1. $AI_RESEARCH_DB, if set — an explicit override always wins
-  2. <repo>/db/research.db, when running from a source checkout
-  3. ~/.ai-investment-research/research.db otherwise
+Resolution order, for both the database and the config file:
+  1. the matching environment variable, if set — an explicit override always wins
+  2. the path inside the source checkout, when running from one
+  3. a per-user directory otherwise
 
-Step 3 matters because a non-editable `pip install .` puts this file inside
-site-packages, where the repo-relative path would resolve to
+Step 3 matters because a non-editable `pip install .` puts these modules inside
+site-packages, where a repo-relative path would resolve to
 site-packages/db/research.db: unwritable on a system Python, and wiped on the
 next upgrade if it is writable.
 """
@@ -18,8 +20,10 @@ next upgrade if it is writable.
 import os
 from pathlib import Path
 
-_ENV_VAR = "AI_RESEARCH_DB"
-_USER_FALLBACK = Path.home() / ".ai-investment-research" / "research.db"
+DB_ENV_VAR = "AI_RESEARCH_DB"
+PROFILE_ENV_VAR = "AI_RESEARCH_PROFILE"
+
+_USER_DIR = Path.home() / ".ai-investment-research"
 
 # paths.py lives at <root>/skills/_lib/paths.py
 _CHECKOUT_ROOT = Path(__file__).resolve().parents[2]
@@ -30,10 +34,18 @@ def _is_source_checkout(root: Path) -> bool:
     return (root / "pyproject.toml").is_file()
 
 
-def default_db_path() -> Path:
-    override = os.environ.get(_ENV_VAR)
+def _resolve(env_var: str, relative: Path) -> Path:
+    override = os.environ.get(env_var)
     if override:
         return Path(override).expanduser()
     if _is_source_checkout(_CHECKOUT_ROOT):
-        return _CHECKOUT_ROOT / "db" / "research.db"
-    return _USER_FALLBACK
+        return _CHECKOUT_ROOT / relative
+    return _USER_DIR / relative.name
+
+
+def default_db_path() -> Path:
+    return _resolve(DB_ENV_VAR, Path("db") / "research.db")
+
+
+def default_profile_path() -> Path:
+    return _resolve(PROFILE_ENV_VAR, Path("config") / "research-profile.json")

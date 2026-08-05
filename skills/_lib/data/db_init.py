@@ -21,6 +21,7 @@ from ..paths import default_db_path
 
 DEFAULT_DB_PATH = default_db_path()
 
+
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS candidates (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -2,7 +2,7 @@
 
 [English](README.md) · 简体中文
 
-一套开放、可移植的投研流水线，以 SKILL.md 形式交付——不绑定 Claude Code，也不是托管服务。装进任何兼容 SKILL.md 的 AI 工具，配置你自己的市场和数据源，在本地跑。
+一套开放、可移植的投研流水线，以 SKILL.md 形式交付——不绑定 Claude Code，也不是托管服务。装进任何兼容 SKILL.md 的宿主（运行技能的 AI 工具），配置你自己的市场和数据源，自己跑。
 
 ## 分层
 
@@ -18,7 +18,7 @@
 ## 设计原则
 
 - **数字来自工具，不来自模型。** 任何要进入输出的数字，都要先过 `skills/_lib/factcontract/` 的 Fact 契约：数据陈旧直接硬停，单位或量级异常给警告。
-- **不预装任何立场。** 没有内置的筛选红线，没有强制的投委会。筛选标准由你自己定义并保存；在你定义之前，intake 就是一次通用的开放搜索。
+- **不预装任何立场。** 没有内置的筛选清单，没有预设的红线，没有强制的投委会。筛选标准由你自己定义并保存；在你定义之前，intake 就是一次通用的开放搜索。
 - **纯标准库。** 没有任何 pip 依赖，有 Python 3.10+ 的地方就能跑。
 
 ## 安装
@@ -26,8 +26,8 @@
 各层技能会 import 共享库 `skills/_lib/`，所以仓库根目录必须在你的 AI 工具运行 Python 时可被导入。克隆后原地安装：
 
 ```bash
-git clone https://github.com/Rever3I/AI-Investment-Research.git
-cd AI-Investment-Research
+git clone https://github.com/Rever3I/ai-investment-research.git
+cd ai-investment-research
 pip install -e .
 ```
 
@@ -37,21 +37,23 @@ pip install -e .
 
 ## 配置
 
-`config/research-profile.json`：
+`config/research-profile.json` 出厂内容如下（**默认是 `en`，想要中文研报就把它改成 `zh-CN`**）：
 
 ```json
 {
-  "output_language": "zh-CN",
+  "output_language": "en",
   "sizing_method": "half_kelly",
   "debate_enabled": false
 }
 ```
 
 - `output_language` —— **研究成果用什么语言写**（thesis 正文、估值说明、结论）。填 `zh-CN` 就出中文研报，不需要另一套代码。语言标签不设白名单。注意这不影响程序自身的日志和报错，那些保持英文，方便任何人搜索排查。
-- `sizing_method` —— 仓位算法：`half_kelly` / `full_kelly` / `fixed_pct` / `custom`
-- `debate_enabled` —— 是否启用可选的分歧辩论层
+- `sizing_method` —— 仓位算法：`half_kelly` / `full_kelly` / `fixed_pct` / `custom`（由 research-portfolio 读取，该层尚未发布）
+- `debate_enabled` —— 是否启用可选的分歧辩论层（由 research-debate 读取，该层尚未发布）
 
-想用另一份配置就设 `AI_RESEARCH_PROFILE` 环境变量指向它。所有配置项都有可用的默认值，配置文件缺失或只写一部分都是正常状态。
+用 JSON 而不是 YAML：本项目零第三方依赖，而标准库没有 YAML 解析器。
+
+想用另一份配置就设 `AI_RESEARCH_PROFILE` 环境变量指向它。所有配置项都有可用的默认值，配置文件缺失、只写一部分、甚至存坏了，都会退回默认值并给出警告，不会中断流水线。
 
 ## 跑测试
 
@@ -61,4 +63,4 @@ python -m pytest -q
 
 ## 当前进度
 
-基础层已完成：共享记录契约、SQLite 存储、Fact 契约、`research-intake` 层。其余各层和市场数据适配器（SEC EDGAR、Wind、FRED、新闻舆情）在后续版本中加入。可保存的筛选 profile 已经定好位置但尚未实现——目前 intake 跑的是通用搜索。
+基础层已完成：共享记录契约、SQLite 存储、Fact 契约、`research-intake` 层。其余各层和市场数据适配器（SEC EDGAR、Wind、FRED、新闻舆情）在后续版本中加入。可保存的筛选 profile 设计已定、尚未实现——目前 intake 跑的是通用搜索。

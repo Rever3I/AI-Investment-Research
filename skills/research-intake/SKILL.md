@@ -105,10 +105,21 @@ from skills._lib.config import output_language
 lang = output_language()   # "en" by default; "zh-CN", "ja", anything the model reads
 ```
 
-Everything the user reads — the rationale, the summary, your commentary — goes
-in that language. Tickers, field names, and the stored record itself stay as
-they are: `entry_path` is `"screen"` in every language, so downstream layers
-keep working regardless of what the reader sees.
+Be exact about what that covers. Downstream layers select and compare on some of
+these fields, so a translated value there does not fail loudly — it fails months
+later when nothing matches.
+
+**Translate:** your on-screen commentary and summary, and `raw_rationale`.
+
+**Never translate:**
+
+| Field | Why |
+| --- | --- |
+| `ticker` | It is an identifier, not prose |
+| `market` | Adapters key off it. `"US"` stays `"US"`, never `"美股"` — nothing validates this field, so a translated value persists cleanly and then matches no adapter |
+| `entry_path` | A fixed value: `"screen"` or `"thesis"`, in every language |
+| `profile_used` | It names a file |
+| `source_note` | On the thesis path this is the user's own words. `research-sellcheck` diffs against them later, and translation is paraphrase — it destroys the thing being tested. Keep it in whatever language they wrote it, regardless of `output_language` |
 
 Present the candidates with their one-line rationale, and say which entry path
 produced them — for screen-first, name the profile used, or say plainly that
