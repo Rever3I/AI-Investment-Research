@@ -171,7 +171,7 @@ class Valuation(_Record):
 
 @dataclass
 class Verdict(_Record):
-    """Produced by research-debate (Layer 5), only when that layer is enabled.
+    """Produced by the dissent pass inside research-valuation, when enabled.
 
     `dissent_map` is deliberately preserved rather than resolved into a single
     call — unresolved disagreement is the output, not a failure to converge.

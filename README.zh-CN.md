@@ -9,9 +9,9 @@
 1. **research-intake** —— 双入口（筛选优先 / 论点优先），产出 `Candidate` 记录
 2. **research-thesis** —— 深度研究，产出 `Thesis` 记录
 3. **research-valuation** —— DCF / 可比公司 / 情景分析，产出 `Valuation` 记录和交互式 HTML
-4. **research-debate** —— 可选的风险与分歧层，产出 `Verdict` 记录
-5. **research-portfolio** —— 仓位测算（默认半 Kelly），产出 `Portfolio` 记录
-6. **research-sellcheck** —— 卖出时按需触发的 thesis 复查，产出 `Sellcheck` 记录
+   其中包含可选的分歧压力测试，把 thesis 放到对立面上推敲，未解决的分歧记为 `Verdict`
+4. **research-portfolio** —— 仓位测算（默认半 Kelly），产出 `Portfolio` 记录
+5. **research-sellcheck** —— 卖出时按需触发的 thesis 复查，产出 `Sellcheck` 记录
 
 每一层交给下一层的是一份经过校验的结构化记录，而不是一段文字。所以不管标的是从量化筛子来的，还是从一个宏观判断反推来的，走的都是同一条流水线、同一把尺子。
 

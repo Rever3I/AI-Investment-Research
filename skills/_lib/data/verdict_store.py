@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 """Persistence for Verdict records.
 
-research-debate writes here, when it is enabled at all. The dissent map is kept
-as written rather than resolved into a single call: unresolved disagreement is
-the output of that layer, not a failure to converge, and flattening it would
-throw away the only part a reader cannot reconstruct.
+Written by the optional dissent pass inside research-valuation, when it is
+enabled at all. The dissent map is kept as written rather than resolved into a
+single call: unresolved disagreement is the output of that pass, not a failure
+to converge, and flattening it would throw away the only part a reader cannot
+reconstruct.
 """
 
 import sqlite3

@@ -4,9 +4,12 @@ description: >
   Value a company whose thesis has been written: an owner-earnings DCF across
   bull, base and bear scenarios with explicit probabilities, a reverse DCF
   showing what growth the current price already assumes, and a self-contained
-  interactive HTML page the reader can drag the assumptions in. Use when the
-  user wants a company valued, asks what a stock is worth, wants a DCF or a
-  price target, or asks what would have to be true to justify the price.
+  interactive HTML page the reader can drag the assumptions in. Includes an
+  optional dissent pass that puts the thesis under adversarial pressure and
+  records what it did not resolve. Use when the user wants a company valued,
+  asks what a stock is worth, wants a DCF or a price target, asks what would
+  have to be true to justify the price, or wants a thesis challenged,
+  stress-tested, or reviewed by a committee before sizing.
 compatibility: claude-code opencode
 allowed-tools:
   - WebSearch
@@ -15,7 +18,7 @@ allowed-tools:
   - Bash
 ---
 
-# Research Valuation (Layer 4)
+# Research Valuation (Layers 4-5)
 
 Takes a `Thesis` and produces a `Valuation`: scenario values with probabilities
 attached, and an interactive page that lets a reader push on the assumptions
@@ -210,12 +213,92 @@ row_id = save_valuation(valuation)
 Revaluing appends rather than overwrites: the old numbers are the record of what
 was believed when a position was sized.
 
+---
+
+# The dissent pass (optional)
+
+A valuation is the natural moment to put the thesis under pressure: the numbers
+exist, and nothing has been sized yet. This pass is off unless the user asked
+for it or configured it on.
+
+```python
+from skills._lib.config import load_profile
+
+if not load_profile()["debate_enabled"]:
+    ...   # skip, and say so once rather than running it anyway
+```
+
+A layer the user switched off is a layer whose cost they have decided.
+
+## What it is for
+
+Not to reach a conclusion. The numbers are already computed and sizing comes
+next; a panel that restates the base case adds ceremony and no information.
+
+What it produces that nothing else does is the **dissent map**: the arguments
+that survived contact with each other and were still not resolved, each tagged
+with what would settle it. That is the part worth reading in a year, because it
+names in advance where the thesis was fragile. A pass that averages three views
+into one verdict has destroyed the only output the reader could not have written
+themselves.
+
+## Two modes
+
+`mode="checklist"` — the default. One analytical voice working the pressure
+points:
+
+- Which claim is doing the most work, and what happens if it is wrong?
+- What does the bear case need to be true, and how would you know early?
+- Which falsifier from the thesis is closest to firing right now?
+- Where does the terminal share sit, and does the story justify it?
+- What would someone who has held the other side for a year say?
+
+`mode="persona_debate"` — a panel of named investor voices, if the user chose
+that. Each argues from a discipline rather than performing a personality: a
+quality-and-moat voice, a margin-of-safety voice, a what-am-I-missing voice, a
+macro-regime voice. Two rounds is enough — one to state positions, one to answer
+the strongest objection raised against them.
+
+Either way the useful output is the same: where the voices agreed, where they
+did not, and what evidence would move each unresolved point.
+
+Any figure introduced during the pass goes through the Fact contract like every
+other number here. A bear case built on a remembered percentage is not a bear
+case, it is a mood.
+
+## Saving the verdict
+
+```python
+from skills._lib.data.schema import Verdict
+from skills._lib.data.verdict_store import save_verdict
+
+verdict = Verdict(
+    valuation_id=valuation.id,
+    mode="checklist",                      # or "persona_debate"
+    votes=[{"voice": "...", "call": "...", "why": "..."}],
+    dissent_map="What was not resolved, and what would settle each point.",
+    authored_at=today_iso,
+)
+row_id = save_verdict(verdict)
+```
+
+`votes` may be empty in checklist mode. `dissent_map` should not be — "no
+unresolved disagreement" is a finding worth stating, and an empty string reads
+as an omission rather than a conclusion.
+
+Do not translate `mode`: the record validates it against `"checklist"` and
+`"persona_debate"` exactly.
+
+---
+
 ## Finishing
 
 Lead with the implied growth rate, then the probability-weighted value against
 the price, then the scenario table with its terminal shares. Say where the page
-is. Stop there — sizing is `research-portfolio`, and the optional dissent layer
-is `research-debate`. Neither runs unasked.
+is. If the dissent pass ran, lead its section with what was **not** resolved
+rather than with the verdict.
+
+Stop there — sizing is `research-portfolio`, and it does not run unasked.
 
 Do not tell the user to buy or sell. Present what the price assumes and what you
 believe; the decision is theirs.

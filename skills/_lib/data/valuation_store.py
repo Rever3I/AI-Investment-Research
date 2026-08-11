@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 """Persistence for Valuation records.
 
-research-valuation writes here; research-debate and research-portfolio read
-from here. The scenario probabilities stored on this record are what
+research-valuation writes here; research-portfolio reads from here. The scenario probabilities stored on this record are what
 research-portfolio feeds into position sizing, which is why they travel with the
 values rather than being restated later.
 """

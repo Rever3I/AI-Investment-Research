@@ -12,9 +12,10 @@ the pipeline yourself.
 1. **research-intake** — dual entry (screen-first / thesis-first), produces a `Candidate` record
 2. **research-thesis** — deep-dive research, produces a `Thesis` record
 3. **research-valuation** — DCF/comps/scenarios, produces a `Valuation` record + interactive HTML
-4. **research-debate** — optional dissent/risk layer, produces a `Verdict` record
-5. **research-portfolio** — position sizing (half-Kelly default), produces a `Portfolio` record
-6. **research-sellcheck** — on-demand thesis-drift check at sell time, produces a `Sellcheck` record
+   Its optional dissent pass puts the thesis under pressure and records what it
+   did not resolve, as a `Verdict`
+4. **research-portfolio** — position sizing (half-Kelly default), produces a `Portfolio` record
+5. **research-sellcheck** — on-demand thesis-drift check at sell time, produces a `Sellcheck` record
 
 Every layer hands the next one a validated record rather than prose, so the
 pipeline works the same whether a candidate arrived from a quantitative screen

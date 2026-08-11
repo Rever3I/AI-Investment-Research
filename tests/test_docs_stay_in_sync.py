@@ -25,10 +25,12 @@ _READMES = {
     "en": _REPO / "README.md",
     "zh-CN": _REPO / "README.zh-CN.md",
 }
-_LAYERS = (
-    "research-intake", "research-thesis", "research-valuation",
-    "research-debate", "research-portfolio", "research-sellcheck",
-)
+# Read from disk rather than hard-coded, so merging or adding a layer cannot
+# leave the READMEs describing a shape the repo no longer has.
+_LAYERS = tuple(sorted(
+    p.name for p in (_REPO / "skills").iterdir()
+    if p.is_dir() and p.name.startswith("research-")
+))
 
 
 def _text(path):
