@@ -201,3 +201,146 @@ def test_the_pages_javascript_refuses_the_same_degenerate_spread():
                          timeout=30)
     assert out.returncode == 0, out.stderr
     assert json.loads(out.stdout) is None
+
+
+# ── the page must show the numbers it stored ──────────────────────
+
+def _row_values(rows_html: str) -> list:
+    """The value column of each rendered row, as numbers.
+
+    Comparing formatted strings is brittle: the page uses toLocaleString, which
+    varies its decimal places with magnitude.
+    """
+    cells = re.findall(r"<td>(.*?)</td>", rows_html)
+    # Columns per row: name, growth, probability, value, vs price, terminal share.
+    values = []
+    for i in range(3, len(cells), 6):
+        raw = re.sub(r"[^0-9.\-]", "", cells[i])
+        values.append(float(raw) if raw not in ("", "-", ".") else None)
+    return values
+
+
+def _run_page(page: str, drag=None) -> dict:
+    """Execute the page's own script against a stub DOM and read the result."""
+    ids_setup = """
+    const ids = {};
+    const mk = () => ({textContent:'', innerHTML:'', value:'', hidden:false,
+                       addEventListener(){}});
+    global.document = { getElementById: (id) => ids[id] || (ids[id] = mk()) };
+    """
+    body = re.search(r"<script>\s*([\s\S]*?)</script>", page).group(1)
+    drag_js = ""
+    if drag:
+        for key, value in drag.items():
+            drag_js += f"ids['{key}'].value = '{value}';\n"
+        drag_js += "onSlide();\n"
+    harness = ids_setup + body + drag_js + """
+    console.log(JSON.stringify({
+      ev: ids.ev.textContent, implied: ids.implied.textContent,
+      rows: ids.rows.innerHTML, state: ids.state.textContent,
+      warn: ids.spreadWarn.hidden,
+    }));
+    """
+    out = subprocess.run([_NODE, "-e", harness], capture_output=True, text=True,
+                         timeout=30)
+    assert out.returncode == 0, out.stderr
+    return json.loads(out.stdout)
+
+
+@pytest.mark.skipif(_NODE is None, reason="node is not installed")
+def test_the_page_first_shows_the_stored_values_not_a_recomputation():
+    """The page used to recompute every row from the global assumptions, so a
+    scenario that overrode the discount rate was displayed at a completely
+    different value from the one saved on the record."""
+    scenarios = scenario_values(
+        [
+            {"name": "base", "probability": 0.5, "growth_rate": "0.10"},
+            {"name": "bear", "probability": 0.5, "growth_rate": "0.10",
+             "discount_rate": "0.20"},
+        ],
+        dict(owner_earnings=1000, growth_rate="0.10", discount_rate="0.10",
+             terminal_growth="0.03", years=10, shares_outstanding=100),
+    )
+    stored = {s["name"]: s["price_target"] for s in scenarios}
+    assert stored["bear"] < stored["base"] / 2, "fixture should differ materially"
+
+    result = _run_page(_page(scenarios=scenarios))
+    shown = _row_values(result["rows"])
+    assert len(shown) == len(stored), result["rows"]
+    for displayed, (name, value) in zip(shown, stored.items()):
+        assert displayed == pytest.approx(value, rel=0.01), (
+            f"{name} is stored at {value} but the page shows {displayed}"
+        )
+
+
+@pytest.mark.skipif(_NODE is None, reason="node is not installed")
+def test_a_scenario_keeps_its_own_override_when_a_slider_moves():
+    scenarios = scenario_values(
+        [
+            {"name": "base", "probability": 0.5, "growth_rate": "0.10"},
+            {"name": "bear", "probability": 0.5, "growth_rate": "0.10",
+             "discount_rate": "0.20"},
+        ],
+        dict(owner_earnings=1000, growth_rate="0.10", discount_rate="0.10",
+             terminal_growth="0.03", years=10, shares_outstanding=100),
+    )
+    page = _page(scenarios=scenarios)
+    dragged = _run_page(page, drag={"r": "12"})
+    # base follows the slider to 12%; bear holds its own 20% and so stays lower.
+    assert "own discount_rate" in dragged["rows"]
+    assert dragged["state"].startswith("Recomputed")
+
+
+@pytest.mark.skipif(_NODE is None, reason="node is not installed")
+def test_the_page_says_whether_it_is_showing_stored_or_recomputed_figures():
+    assert _run_page(_page())["state"] == "Showing the stored figures."
+
+
+@pytest.mark.skipif(_NODE is None, reason="node is not installed")
+def test_a_hostile_scenario_name_cannot_inject_markup():
+    """Scenario names come from model-authored text, and the page opens from
+    file://, so an injected tag runs with local-file privileges."""
+    scenarios = scenario_values(
+        [{"name": '<img src=x onerror="alert(1)">bull', "probability": 1.0,
+          "growth_rate": "0.10"}],
+        dict(owner_earnings=1000, growth_rate="0.10", discount_rate="0.10",
+             terminal_growth="0.03", years=10, shares_outstanding=100),
+    )
+    rows = _run_page(_page(scenarios=scenarios))["rows"]
+    assert "<img" not in rows
+    assert "&lt;img" in rows
+
+
+@pytest.mark.skipif(_NODE is None, reason="node is not installed")
+def test_string_rates_do_not_become_string_concatenation():
+    """Rates are documented as strings throughout this package. In JavaScript
+    1 + "0.10" is "10.10", which drew a 915% growth year and then NaN."""
+    page = _page(discount_rate="0.10", terminal_growth="0.03")
+    result = _run_page(page, drag={"r": "10"})
+    assert "NaN" not in result["rows"]
+    assert "NaN" not in result["ev"]
+
+
+def test_a_string_rate_is_coerced_to_a_number_in_the_payload():
+    payload = _payload(_page(discount_rate="0.10", terminal_growth="0.03"))
+    assert payload["discountRate"] == 0.10
+    assert isinstance(payload["discountRate"], float)
+
+
+def test_a_non_numeric_rate_is_rejected_rather_than_silently_drawn():
+    with pytest.raises(ValueError):
+        _page(discount_rate="ten percent")
+
+
+def test_javascript_line_separators_are_escaped():
+    page = _page(scenarios=[{
+        "name": "base", "probability": 1.0, "price_target": 100.0,
+        "assumptions": "line\u2028separator", "terminal_share": 0.5,
+        "inputs": {"owner_earnings": 1000, "growth_rate": 0.1,
+                   "discount_rate": 0.1, "terminal_growth": 0.03,
+                   "years": 10, "shares_outstanding": 100},
+        "overrides": [],
+    }])
+    script = page[page.index("const DATA = "):]
+    assert "\u2028" not in script, "a raw line separator reached the script body"
+    assert "\\u2028" in script, "the separator was dropped rather than escaped"

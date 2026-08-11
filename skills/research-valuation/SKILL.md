@@ -44,7 +44,7 @@ somewhere else.
 ## Getting the thesis
 
 ```python
-from skills._lib.data.thesis_store import get_thesis, get_thesis_for_candidate
+from skills._lib.data.thesis_store import get_thesis
 
 thesis = get_thesis(thesis_id)
 ```
@@ -57,7 +57,10 @@ so `save_valuation` refuses one.
 ## Inputs
 
 Owner earnings is the starting figure: net income plus depreciation and
-amortisation, less capital expenditure. Every number in it passes the Fact
+amortisation, less capital expenditure. It must be positive — an owner-earnings
+DCF does not apply to a business that produces none, and the module refuses
+rather than returning the negative price target the arithmetic would otherwise
+hand you. For a loss-maker, say the method does not fit and stop. Every number in it passes the Fact
 contract first, grouped so a quarterly figure cannot end up divided by a
 trailing-twelve-month one:
 
@@ -110,20 +113,30 @@ would corrupt the sizing downstream.
 ## The reverse DCF is the more useful output
 
 ```python
-implied = implied_growth_rate(
-    market_value=current_price, owner_earnings=owner_earnings,
-    discount_rate="0.10", terminal_growth="0.03", years=10,
-    shares_outstanding=shares,
-)
+from skills._lib.valuation import PriceOutsideBracket
+
+implied = None
+try:
+    implied = implied_growth_rate(
+        market_value=current_price, owner_earnings=owner_earnings,
+        discount_rate="0.10", terminal_growth="0.03", years=10,
+        shares_outstanding=shares,
+    )
+except PriceOutsideBracket as exc:
+    out_of_range = exc          # exc.direction is "below" or "above"
 ```
 
 This turns "is it cheap" into "the price assumes 18% a year for a decade — is
 that going to happen?", which is a question the reader can actually judge. Lead
 with it.
 
-It returns `None` when no growth rate in a plausible range reproduces the price,
-which means the market is valuing the business below its current earnings in
-perpetuity. Report that finding; do not fill in a number.
+`PriceOutsideBracket` means no growth rate in the searched range fits, and
+`exc.direction` says which side. **Report the direction it gives you, not a
+remembered one** — `"below"` means the price sits under the value of these owner
+earnings even shrinking; `"above"` means it sits over the value of very fast
+growth, which is ordinary for a business whose owner earnings are near zero
+because capital expenditure eats them. These are opposite findings and saying
+the wrong one is worse than saying neither.
 
 Also report `terminal_share` from each scenario. A valuation that is 85%
 terminal value is a statement about the discount rate rather than about the
@@ -132,8 +145,10 @@ business, and the reader deserves to know which one they are being shown.
 ## The interactive page
 
 ```python
-from skills._lib.valuation.report import render
 from pathlib import Path
+
+from skills._lib.config import output_language
+from skills._lib.valuation.report import render
 
 page = render(
     ticker=ticker, scenarios=scenarios, owner_earnings=owner_earnings,
@@ -153,9 +168,8 @@ and tell the user where it is.
 
 ## Output language
 
-```python
-from skills._lib.config import output_language
-```
+`output_language()` (imported above) decides the language of everything the
+reader sees.
 
 **Translate:** your commentary, and each scenario's `assumptions` string.
 

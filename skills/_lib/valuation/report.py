@@ -18,8 +18,21 @@ from decimal import Decimal
 
 
 def _num(value):
-    """JSON cannot carry Decimal; the page works in float, the record does not."""
-    return float(value) if isinstance(value, Decimal) else value
+    """Coerce to a JSON number.
+
+    Rates are documented and used as strings throughout this package
+    (`growth_rate="0.10"`), and JSON would carry a string straight through to
+    JavaScript, where `1 + "0.10"` is string concatenation. The page then draws
+    NaN into a table with no error anywhere.
+    """
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        raise ValueError(f"expected a number, got {value!r}")
+    try:
+        return float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"expected a number, got {value!r}") from exc
 
 
 def _embed(payload: dict) -> str:
@@ -30,10 +43,20 @@ def _embed(payload: dict) -> str:
     early and drops the rest of the page into the document as markup. Escaping
     it as \\u003c is invisible to JSON.parse and to the reader.
 
+    U+2028 and U+2029 are escaped for a related reason: both are legal inside a
+    JSON string and both are line terminators in JavaScript source, so an engine
+    predating ES2019 sees the string literal end mid-value. A note pasted from a
+    word processor is the usual way one arrives.
+
     ensure_ascii=False so CJK stays readable in the file itself, matching how
     the store writes its JSON columns.
     """
-    return json.dumps(payload, ensure_ascii=False).replace("<", "\\u003c")
+    return (
+        json.dumps(payload, ensure_ascii=False)
+        .replace("<", "\\u003c")
+        .replace("\u2028", "\\u2028")
+        .replace("\u2029", "\\u2029")
+    )
 
 
 def render(
@@ -65,9 +88,14 @@ def render(
                 "name": s["name"],
                 "probability": _num(s["probability"]),
                 "priceTarget": _num(s["price_target"]),
-                "growthRate": _num(s.get("growth_rate", "")) if s.get("growth_rate") not in (None, "") else None,
                 "assumptions": s.get("assumptions", ""),
-                "terminalShare": _num(s.get("terminal_share")) if s.get("terminal_share") is not None else None,
+                "terminalShare": _num(s.get("terminal_share")),
+                # The resolved inputs this scenario was computed from, and which
+                # of them it set itself. A slider may move the rest; it must not
+                # move an override, or the row stops being the scenario it names.
+                "inputs": {k: (None if v is None else _num(v))
+                           for k, v in (s.get("inputs") or {}).items()},
+                "overrides": s.get("overrides", []),
             }
             for s in scenarios
         ],
@@ -147,6 +175,7 @@ _TEMPLATE = """<!doctype html>
   tr.bear td:first-child {{ color: var(--bear); }}
   .note {{ color: var(--muted); font-size: .85rem; max-width: 44rem; }}
   .warn {{ color: var(--bear); font-size: .85rem; }}
+  .held {{ font-size: .72rem; color: var(--muted); }}
 </style>
 </head>
 <body>
@@ -167,15 +196,15 @@ _TEMPLATE = """<!doctype html>
   <div class="controls">
     <div class="control">
       <label for="r">Discount rate <output id="rOut"></output></label>
-      <input type="range" id="r" min="1" max="25" step="0.25">
+      <input type="range" id="r" min="0.5" max="40" step="any">
     </div>
     <div class="control">
       <label for="tg">Terminal growth <output id="tgOut"></output></label>
-      <input type="range" id="tg" min="-2" max="6" step="0.25">
+      <input type="range" id="tg" min="-5" max="10" step="any">
     </div>
     <div class="control">
       <label for="yr">Projection years <output id="yrOut"></output></label>
-      <input type="range" id="yr" min="3" max="20" step="1">
+      <input type="range" id="yr" min="1" max="50" step="1">
     </div>
   </div>
   <p class="warn" id="spreadWarn" hidden>
@@ -194,6 +223,7 @@ _TEMPLATE = """<!doctype html>
     </table>
   </div>
   <p class="note" id="assumptionNotes"></p>
+  <p class="note" id="state"></p>
 
   <p class="note">
     Values recompute from the sliders; the stored record holds the figures as
@@ -245,9 +275,12 @@ function impliedGrowth(target, oe, r, terminalG, years, shares) {{
   return (low + high) / 2;
 }}
 
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => (
+  {{ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }}[c]));
+
 const fmt = (n) => n === null || n === undefined || !isFinite(n) ? "—"
   : (DATA.currency ? DATA.currency + " " : "") + n.toLocaleString(undefined,
-      {{ maximumFractionDigits: n >= 100 ? 0 : 2 }});
+      {{ maximumFractionDigits: Math.abs(n) >= 100 ? 0 : 2 }});
 const pct = (n) => n === null || n === undefined || !isFinite(n) ? "—"
   : (n * 100).toFixed(1) + "%";
 
@@ -260,51 +293,108 @@ const els = {{
   px: document.getElementById("px"), implied: document.getElementById("implied"),
   warn: document.getElementById("spreadWarn"),
   notes: document.getElementById("assumptionNotes"),
+  state: document.getElementById("state"),
 }};
 
-els.r.value = (DATA.discountRate * 100).toFixed(2);
-els.tg.value = (DATA.terminalGrowth * 100).toFixed(2);
-els.yr.value = DATA.years;
+// The first paint reports the stored figures verbatim. A range input clamps and
+// quantises whatever you assign it, so reading the assumptions back off the DOM
+// would show a valuation nobody computed. Only once the reader moves something
+// does the page recompute, and it says so when it has.
+let live = null;
+
+function current() {{
+  return live || {{
+    discountRate: DATA.discountRate,
+    terminalGrowth: DATA.terminalGrowth,
+    years: DATA.years,
+  }};
+}}
+
+function effective(scenario) {{
+  // A slider moves the assumptions the scenario did not set for itself.
+  const base = current();
+  const held = scenario.overrides || [];
+  const inputs = scenario.inputs || {{}};
+  return {{
+    oe: inputs.owner_earnings,
+    g: inputs.growth_rate,
+    r: held.includes("discount_rate") ? inputs.discount_rate : base.discountRate,
+    tg: held.includes("terminal_growth") ? inputs.terminal_growth : base.terminalGrowth,
+    years: held.includes("years") ? inputs.years : base.years,
+    shares: inputs.shares_outstanding,
+  }};
+}}
 
 function redraw() {{
-  const r = parseFloat(els.r.value) / 100;
-  const tg = parseFloat(els.tg.value) / 100;
-  const years = parseInt(els.yr.value, 10);
-  els.rOut.textContent = (r * 100).toFixed(2) + "%";
-  els.tgOut.textContent = (tg * 100).toFixed(2) + "%";
-  els.yrOut.textContent = years;
-  els.warn.hidden = (r - tg) >= 0.005;
+  const base = current();
+  els.rOut.textContent = (base.discountRate * 100).toFixed(2) + "%";
+  els.tgOut.textContent = (base.terminalGrowth * 100).toFixed(2) + "%";
+  els.yrOut.textContent = base.years;
+  els.warn.hidden = (base.discountRate - base.terminalGrowth) >= 0.005;
+  els.state.textContent = live
+    ? "Recomputed from the sliders. The record holds the figures below as first generated."
+    : "Showing the stored figures.";
 
   let ev = 0, rows = "";
   DATA.scenarios.forEach((s) => {{
-    const g = s.growthRate === null ? null : s.growthRate;
-    const d = g === null ? null
-      : dcf(DATA.ownerEarnings, g, r, tg, years, DATA.shares);
-    const value = d ? d.value : null;
-    if (value !== null) ev += value * s.probability;
+    let value, terminalShare;
+    if (live === null) {{
+      value = s.priceTarget;
+      terminalShare = s.terminalShare;
+    }} else {{
+      const e = effective(s);
+      const d = dcf(e.oe, e.g, e.r, e.tg, e.years, e.shares);
+      value = d && d.value;
+      terminalShare = d && d.terminalShare;
+    }}
+    if (value !== null && value !== undefined && isFinite(value)) {{
+      ev += value * s.probability;
+    }}
     const cls = /bull|upside/i.test(s.name) ? "bull"
       : /bear|downside/i.test(s.name) ? "bear" : "";
-    const vsPrice = (value !== null && DATA.marketPrice)
+    const vsPrice = (value != null && isFinite(value) && DATA.marketPrice)
       ? ((value / DATA.marketPrice - 1) * 100).toFixed(0) + "%" : "—";
-    rows += `<tr class="${{cls}}"><td>${{s.name}}</td><td>${{pct(g)}}</td>` +
-            `<td>${{pct(s.probability)}}</td><td>${{fmt(value)}}</td>` +
-            `<td>${{vsPrice}}</td><td>${{d ? pct(d.terminalShare) : "—"}}</td></tr>`;
+    const held = (s.overrides || []).length
+      ? ' <span class="held">own ' + esc((s.overrides || []).join(', ')) + '</span>' : '';
+    rows += '<tr class="' + cls + '"><td>' + esc(s.name) + held + '</td>' +
+            '<td>' + pct(effective(s).g) + '</td>' +
+            '<td>' + pct(s.probability) + '</td><td>' + fmt(value) + '</td>' +
+            '<td>' + vsPrice + '</td><td>' + pct(terminalShare) + '</td></tr>';
   }});
   els.rows.innerHTML = rows;
   els.ev.textContent = fmt(ev || null);
   els.px.textContent = fmt(DATA.marketPrice);
 
-  const implied = DATA.marketPrice
-    ? impliedGrowth(DATA.marketPrice, DATA.ownerEarnings, r, tg, years, DATA.shares)
-    : null;
-  els.implied.textContent = implied === null ? "—" : pct(implied);
+  let implied;
+  if (live === null) {{
+    implied = DATA.impliedGrowth;
+  }} else {{
+    implied = DATA.marketPrice
+      ? impliedGrowth(DATA.marketPrice, DATA.ownerEarnings, base.discountRate,
+                      base.terminalGrowth, base.years, DATA.shares)
+      : null;
+  }}
+  els.implied.textContent = implied === null || implied === undefined ? "—" : pct(implied);
 
   const notes = DATA.scenarios.filter((s) => s.assumptions)
     .map((s) => s.name + ": " + s.assumptions).join(" · ");
   els.notes.textContent = notes;
 }}
 
-[els.r, els.tg, els.yr].forEach((el) => el.addEventListener("input", redraw));
+function onSlide() {{
+  live = {{
+    discountRate: parseFloat(els.r.value) / 100,
+    terminalGrowth: parseFloat(els.tg.value) / 100,
+    years: parseInt(els.yr.value, 10),
+  }};
+  redraw();
+}}
+
+els.r.value = (DATA.discountRate * 100).toFixed(4);
+els.tg.value = (DATA.terminalGrowth * 100).toFixed(4);
+els.yr.value = DATA.years;
+
+[els.r, els.tg, els.yr].forEach((el) => el.addEventListener("input", onSlide));
 redraw();
 </script>
 </body>

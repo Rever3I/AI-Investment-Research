@@ -30,9 +30,46 @@ _MIN_SPREAD = Decimal("0.005")
 
 _MAX_PROJECTION_YEARS = 50
 
+# A rate at or below -100% shrinks cash flow past zero and then compounds the
+# negative, which yields a positive present value for a business in free fall.
+_MIN_GROWTH = Decimal("-1")
+
+# The range the reverse DCF searches. Wide enough for anything worth taking
+# seriously, and reported explicitly when a price falls outside it.
+_SEARCH_LOW = Decimal("-0.5")
+_SEARCH_HIGH = Decimal("1.0")
+
 
 class DCFError(ValueError):
     """The inputs cannot produce a meaningful valuation."""
+
+
+class PriceOutsideBracket(DCFError):
+    """No growth rate in the searched range reproduces the market price.
+
+    `direction` is "below" when the price sits under the value of current owner
+    earnings even with earnings shrinking as fast as the search allows, and
+    "above" when it sits over the value implied by the fastest rate searched.
+    These are opposite findings and reporting one as the other is worse than
+    reporting neither, which is why they are not both a bare None.
+    """
+
+    def __init__(self, direction: str, market_value, bound_value, bound_rate):
+        self.direction = direction
+        self.market_value = market_value
+        self.bound_value = bound_value
+        self.bound_rate = bound_rate
+        if direction == "below":
+            detail = (
+                f"the price ({market_value}) is below the value of these owner "
+                f"earnings even at {bound_rate:%} annual growth ({bound_value})"
+            )
+        else:
+            detail = (
+                f"the price ({market_value}) is above the value implied by even "
+                f"{bound_rate:%} annual growth ({bound_value})"
+            )
+        super().__init__(f"No growth rate in the searched range fits: {detail}.")
 
 
 def _dec(value, name: str) -> Decimal:
@@ -83,6 +120,13 @@ def project_owner_earnings(
     """
     oe = _dec(owner_earnings, "owner_earnings")
     g = _dec(growth_rate, "growth_rate")
+    if oe <= 0:
+        raise DCFError(
+            f"owner_earnings must be positive, got {oe}. An owner-earnings DCF "
+            f"does not apply to a business that produces none: the arithmetic "
+            f"still returns a number, and that number is a negative price target "
+            f"with an ordinary-looking terminal share hiding inside it."
+        )
     if years < 1:
         raise DCFError(f"years must be at least 1, got {years}")
     if years > _MAX_PROJECTION_YEARS:
@@ -90,8 +134,21 @@ def project_owner_earnings(
             f"years={years} exceeds {_MAX_PROJECTION_YEARS}; a projection that "
             f"long is an assumption about the terminal rate wearing a spreadsheet"
         )
+    # Below -100% the cash flows change sign and then "grow", which produces a
+    # positive, plausible-looking present value out of a collapsing business.
+    # The realistic way in is a percent-versus-fraction slip: -3 meaning -3%.
+    if g <= _MIN_GROWTH:
+        raise DCFError(
+            f"growth_rate={g} is at or below -100%. Rates are fractions here: "
+            f"-0.03 is minus three percent, -3 is minus three hundred."
+        )
 
     fade_to = g if terminal_growth is None else _dec(terminal_growth, "terminal_growth")
+    if fade_to <= _MIN_GROWTH:
+        raise DCFError(
+            f"terminal_growth={fade_to} is at or below -100%. Rates are fractions "
+            f"here: -0.03 is minus three percent, -3 is minus three hundred."
+        )
     series = []
     current = oe
     for year in range(1, years + 1):
@@ -187,10 +244,10 @@ def implied_growth_rate(
     whether something is cheap into a question anyone can check: is this company
     going to grow owner earnings at that rate for the next decade?
 
-    Returns the annual rate as a Decimal, or None if no rate in the searched
-    range reproduces the market value. That happens when the market is pricing
-    the business below the value of its current earnings in perpetuity, which is
-    a finding rather than a failure — report it, do not fill it in.
+    Returns the annual rate as a Decimal. Raises PriceOutsideBracket when no rate
+    in the searched range fits, carrying which side it fell off — a price below
+    the value of shrinking earnings and a price above the value of very fast
+    growth are opposite findings, and a bare None cannot tell them apart.
     """
     target = _dec(market_value, "market_value")
     if target <= 0:
@@ -207,10 +264,12 @@ def implied_growth_rate(
         )
         return result.per_share if shares_outstanding is not None else result.present_value
 
-    # Bracket: -50% to +100% a year covers any rate worth taking seriously.
-    low, high = Decimal("-0.5"), Decimal("1.0")
-    if value_at(low) > target or value_at(high) < target:
-        return None
+    low, high = _SEARCH_LOW, _SEARCH_HIGH
+    low_value, high_value = value_at(low), value_at(high)
+    if target < low_value:
+        raise PriceOutsideBracket("below", target, low_value, low)
+    if target > high_value:
+        raise PriceOutsideBracket("above", target, high_value, high)
 
     for _ in range(max_iterations):
         mid = (low + high) / 2
@@ -221,7 +280,14 @@ def implied_growth_rate(
             low = mid
         else:
             high = mid
-    return (low + high) / 2
+    # Bisection on a continuous monotone function always narrows; reaching here
+    # means the tolerance is finer than the interval can resolve. Say so rather
+    # than returning a midpoint indistinguishable from a converged answer.
+    raise DCFError(
+        f"implied growth did not converge in {max_iterations} iterations; the "
+        f"tolerance ({tolerance}) may be finer than this price can resolve. "
+        f"Narrowed to [{low}, {high}]."
+    )
 
 
 def scenario_values(scenarios, base_inputs: dict) -> list:
@@ -232,14 +298,25 @@ def scenario_values(scenarios, base_inputs: dict) -> list:
     research-portfolio reads as Kelly inputs, so the probabilities travel with
     the values rather than being re-stated later from memory.
     """
+    _OVERRIDABLE = ("owner_earnings", "growth_rate", "discount_rate",
+                    "terminal_growth", "years", "shares_outstanding")
     out = []
     for scenario in scenarios:
         name = scenario.get("name", "<unnamed>")
+        if "name" not in scenario:
+            raise DCFError(f"scenario is missing a name: {scenario!r}")
+        if "probability" not in scenario:
+            raise DCFError(f"scenario {name!r} is missing a probability")
+
+        overrides = {k: v for k, v in scenario.items() if k in _OVERRIDABLE}
+        unknown = set(scenario) - set(_OVERRIDABLE) - {"name", "probability", "assumptions"}
+        if unknown:
+            raise DCFError(
+                f"scenario {name!r} sets {sorted(unknown)}, which the DCF does "
+                f"not take. Overridable inputs are {list(_OVERRIDABLE)}."
+            )
         inputs = dict(base_inputs)
-        inputs.update({
-            k: v for k, v in scenario.items()
-            if k not in ("name", "probability", "assumptions")
-        })
+        inputs.update(overrides)
         try:
             result = discounted_cash_flow(**inputs)
         except (DCFError, TypeError) as exc:
@@ -253,10 +330,25 @@ def scenario_values(scenarios, base_inputs: dict) -> list:
             "assumptions": scenario.get("assumptions", ""),
             "price_target": float(value),
             "terminal_share": float(result.terminal_share),
-            # The growth rate travels with the result so the interactive report
-            # can recompute this scenario when the reader moves the discount
-            # rate. Without it the page has a row it cannot recalculate.
-            "growth_rate": float(result.inputs["growth_rate"]),
+            # The full resolved input set travels with the result, not just the
+            # growth rate. The interactive report recomputes each row as the
+            # reader moves the sliders, and a scenario that overrode the discount
+            # rate has to keep that override — otherwise the page silently shows
+            # a different number from the one stored on the record.
+            "inputs": {
+                "owner_earnings": float(result.inputs["owner_earnings"]),
+                "growth_rate": float(result.inputs["growth_rate"]),
+                "discount_rate": float(result.inputs["discount_rate"]),
+                "terminal_growth": float(result.inputs["terminal_growth"]),
+                "years": int(result.inputs["years"]),
+                "shares_outstanding": (
+                    None if result.inputs["shares_outstanding"] is None
+                    else float(result.inputs["shares_outstanding"])
+                ),
+            },
+            # Which of those the scenario set itself, so the report knows what a
+            # slider is allowed to change.
+            "overrides": sorted(overrides),
         })
     return out
 

@@ -11,6 +11,7 @@ import pytest
 
 from skills._lib.valuation import (
     DCFError,
+    PriceOutsideBracket,
     discounted_cash_flow,
     expected_value,
     implied_growth_rate,
@@ -203,13 +204,40 @@ def test_a_higher_price_implies_faster_growth():
     assert dear > cheap
 
 
-def test_implied_growth_returns_none_when_no_rate_reproduces_the_price():
-    """A price below the value of current earnings in perpetuity is a finding,
-    not a number to invent."""
-    assert implied_growth_rate(
-        market_value=1, owner_earnings=100, discount_rate="0.10",
-        terminal_growth="0.03", years=10,
-    ) is None
+def test_a_price_below_the_searched_range_says_which_side_it_fell_off():
+    """A price below the value of current earnings is a finding, not a number to
+    invent."""
+    with pytest.raises(PriceOutsideBracket) as excinfo:
+        implied_growth_rate(
+            market_value=1, owner_earnings=100, discount_rate="0.10",
+            terminal_growth="0.03", years=10,
+        )
+    assert excinfo.value.direction == "below"
+
+
+def test_a_price_above_the_searched_range_is_not_reported_as_below():
+    """Both ends used to return a bare None, and the docs named only the cheap
+    one — so a company priced above 400x owner earnings was reported as priced
+    below its earnings in perpetuity. The exact opposite, stated confidently."""
+    with pytest.raises(PriceOutsideBracket) as excinfo:
+        implied_growth_rate(
+            market_value=10_000_000, owner_earnings=100, discount_rate="0.10",
+            terminal_growth="0.03", years=10,
+        )
+    assert excinfo.value.direction == "above"
+    assert "above" in str(excinfo.value)
+
+
+def test_the_two_out_of_range_directions_are_distinguishable():
+    common = dict(owner_earnings=100, discount_rate="0.10",
+                  terminal_growth="0.03", years=10)
+    directions = set()
+    for price in (1, 10_000_000):
+        try:
+            implied_growth_rate(market_value=price, **common)
+        except PriceOutsideBracket as exc:
+            directions.add(exc.direction)
+    assert directions == {"below", "above"}
 
 
 def test_a_non_positive_market_value_is_rejected():
@@ -308,3 +336,96 @@ def test_a_scenario_missing_a_required_input_is_named():
         )
     assert "base" in str(excinfo.value)
     assert "growth_rate" in str(excinfo.value)
+
+
+# ── inputs that make the arithmetic meaningless ───────────────────
+
+def test_a_loss_making_business_is_refused_rather_than_valued():
+    """The arithmetic still returns a number for negative owner earnings: a
+    negative price target with an ordinary-looking 54% terminal share hiding the
+    fact that both halves of the ratio are negative. That number then flows into
+    position sizing."""
+    with pytest.raises(DCFError) as excinfo:
+        _dcf(owner_earnings=-100)
+    assert "owner_earnings" in str(excinfo.value)
+
+
+def test_zero_owner_earnings_is_refused():
+    with pytest.raises(DCFError):
+        _dcf(owner_earnings=0)
+
+
+@pytest.mark.parametrize("bad", ["-1", "-1.5", "-3"])
+def test_growth_at_or_below_minus_one_hundred_percent_is_refused(bad):
+    """-3 meaning -3% used to return a positive, plausible 1077.92."""
+    with pytest.raises(DCFError) as excinfo:
+        _dcf(growth_rate=bad)
+    assert "-100%" in str(excinfo.value)
+
+
+@pytest.mark.parametrize("bad", ["-1", "-2"])
+def test_terminal_growth_at_or_below_minus_one_hundred_percent_is_refused(bad):
+    with pytest.raises(DCFError):
+        _dcf(terminal_growth=bad)
+
+
+def test_terminal_share_stays_within_zero_and_one_for_valid_inputs():
+    """It used to leave [0,1] whenever a sign flip put the present value and the
+    terminal value on opposite sides of zero."""
+    for g in ("-0.9", "-0.5", "0.0", "0.5", "1.0"):
+        for years in (1, 5, 10, 30):
+            result = _dcf(growth_rate=g, years=years)
+            assert Decimal(0) <= result.terminal_share <= Decimal(1), (
+                f"g={g} years={years} -> {result.terminal_share}"
+            )
+
+
+def test_terminal_share_matches_a_hand_computed_value():
+    """0 < ts < 1 passes even when the figure is 5% wrong."""
+    # Zero growth throughout: PV of 10 years of 100 at 10%, plus a 1000
+    # perpetuity discounted 10 years. Terminal share = 1000/1.1^10 / 1000.
+    result = _dcf(growth_rate="0.00", terminal_growth="0.00", years=10)
+    expected = (Decimal(1000) / (Decimal("1.1") ** 10)) / Decimal(1000)
+    assert result.terminal_share == pytest.approx(expected, rel=Decimal("1e-12"))
+
+
+def test_the_spread_guard_fires_exactly_at_the_boundary():
+    _dcf(discount_rate="0.085", terminal_growth="0.08")      # spread == 0.005, allowed
+    with pytest.raises(DCFError):
+        _dcf(discount_rate="0.08499", terminal_growth="0.08")
+
+
+def test_a_scenario_without_a_name_is_named_as_the_problem():
+    with pytest.raises(DCFError) as excinfo:
+        scenario_values([{"probability": 1.0, "growth_rate": "0.1"}], _base_inputs())
+    assert "name" in str(excinfo.value)
+
+
+def test_a_scenario_without_a_probability_is_refused():
+    with pytest.raises(DCFError) as excinfo:
+        scenario_values([{"name": "base", "growth_rate": "0.1"}], _base_inputs())
+    assert "probability" in str(excinfo.value)
+
+
+def test_a_scenario_setting_an_unknown_input_is_refused():
+    """A typo'd key used to be silently ignored, so the scenario quietly ran on
+    the base assumptions it thought it had overridden."""
+    with pytest.raises(DCFError) as excinfo:
+        scenario_values(
+            [{"name": "base", "probability": 1.0, "discount_rte": "0.2"}],
+            _base_inputs(),
+        )
+    assert "discount_rte" in str(excinfo.value)
+
+
+def test_scenario_results_carry_their_full_resolved_inputs():
+    """The report recomputes each row as the reader moves a slider, and a
+    scenario that overrode the discount rate has to keep that override."""
+    results = scenario_values(
+        [{"name": "bear", "probability": 1.0, "growth_rate": "0.0",
+          "discount_rate": "0.20"}],
+        _base_inputs(),
+    )
+    assert results[0]["inputs"]["discount_rate"] == 0.20
+    assert results[0]["inputs"]["growth_rate"] == 0.0
+    assert results[0]["overrides"] == ["discount_rate", "growth_rate"]

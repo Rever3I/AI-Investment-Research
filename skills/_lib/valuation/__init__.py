@@ -5,6 +5,7 @@ narrative that surrounds it.
 from .dcf import (
     DCFError,
     DCFResult,
+    PriceOutsideBracket,
     discounted_cash_flow,
     expected_value,
     implied_growth_rate,
@@ -15,6 +16,7 @@ from .dcf import (
 __all__ = [
     "DCFError",
     "DCFResult",
+    "PriceOutsideBracket",
     "discounted_cash_flow",
     "expected_value",
     "implied_growth_rate",
