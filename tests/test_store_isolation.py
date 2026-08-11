@@ -26,6 +26,16 @@ _DATA_DIR = Path(store_support.__file__).resolve().parent
 _REAL_DB = Path(__file__).resolve().parent.parent / "db" / "research.db"
 
 
+def _snapshot(path: Path):
+    """Existence and size of the real database.
+
+    Asserting the file does not exist would fail for anyone who has actually
+    used the tool before running the tests, which is most users. What matters is
+    that a test run does not change it.
+    """
+    return (path.exists(), path.stat().st_size if path.exists() else 0)
+
+
 def _candidate():
     return Candidate(
         ticker="PROBE", entry_path="screen", source_note="x", market="US",
@@ -42,21 +52,22 @@ def test_a_store_call_with_no_db_path_lands_in_the_scratch_database(
 
 
 def test_a_store_call_with_no_db_path_does_not_touch_the_real_database():
-    before = _REAL_DB.exists()
+    before = _snapshot(_REAL_DB)
     save_candidate(_candidate())
-    assert _REAL_DB.exists() == before, (
+    assert _snapshot(_REAL_DB) == before, (
         "a store call without db_path reached the repo's real database"
     )
 
 
 def test_the_whole_chain_stays_isolated(isolated_record_store):
+    before = _snapshot(_REAL_DB)
     candidate_id = save_candidate(_candidate())
     save_thesis(Thesis(
         candidate_id=candidate_id, business_overview="x", management="x",
         competitors="x", tam="x", risks=["r"],
     ))
     assert isolated_record_store.exists()
-    assert not _REAL_DB.exists()
+    assert _snapshot(_REAL_DB) == before
 
 
 def test_resolve_follows_a_redirected_default(monkeypatch, tmp_path):
