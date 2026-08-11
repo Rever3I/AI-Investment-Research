@@ -58,6 +58,8 @@ to put it somewhere else.
   "sizing_method": "half_kelly",
   "fixed_pct": 0.05,
   "debate_enabled": false,
+  "sec_contact": "",
+  "fred_api_key": "",
   "position_cap": 1.0
 }
 ```
@@ -71,6 +73,12 @@ to put it somewhere else.
 - `fixed_pct` — the weight used when `sizing_method` is `fixed_pct`, as a
   fraction of capital. `custom` takes its weight from the caller instead
 - `debate_enabled` — whether the optional dissent layer participates
+- `sec_contact` — a name and email, e.g. `"Jane Roe jane@example.com"`. SEC
+  requires it in the User-Agent and returns 403 without one, so US filings have
+  no source until it is set
+- `fred_api_key` — a free key from
+  [FRED](https://fredaccount.stlouisfed.org/apikeys), for the macro series that
+  give a discount rate its provenance
 - `position_cap` — concentration ceiling as a fraction of capital, applied after
   sizing. Kelly knows nothing about the rest of a portfolio; `1.0` is no ceiling
 
@@ -95,7 +103,32 @@ a Decimal owner-earnings DCF with reverse-DCF and scenarios, and a Kelly sizing
 solver that handles multi-outcome distributions rather than only the binary
 case.
 
-Still to come: the market data adapters (SEC EDGAR, Wind, FRED, news/alt-data),
-which is why every layer currently takes its numbers from whatever search the
-host provides, verified through the Fact contract. Saved screening profiles are
-specified but not yet implemented — intake runs a general search.
+## Data sources
+
+Adapters return `Fact` objects rather than bare numbers, so a figure cannot
+reach a valuation without a source, a unit and an as-of time attached. Each
+domain is a chain: if the first source fails, the next is tried and the fallback
+is logged, because a primary that quietly always fails looks identical to one
+that works.
+
+| Domain | Source | Needs |
+| --- | --- | --- |
+| `price` | Yahoo chart, two hosts, then Stooq | nothing |
+| `us_equity` | SEC EDGAR XBRL company facts | `sec_contact` |
+| `macro` | FRED | `fred_api_key` (free) |
+| `cn_equity` | Wind | a licensed Wind terminal |
+
+```python
+from skills._lib.data.adapters import configure, fetch, status_report
+
+print(status_report(configure()))     # what is wired up and what can run
+facts = fetch("us_equity", "KO")      # net income, D&A, capex, share count
+```
+
+Prices work with no configuration at all, which is the case that matters on a
+fresh clone. The Wind adapter is written to Wind's documented interface but
+**has not been verified against a live terminal** — WindPy ships with the paid
+product and cannot be installed otherwise. Treat it as a starting point.
+
+Saved screening profiles are specified but not yet implemented — intake runs a
+general search.

@@ -39,6 +39,12 @@ _DEFAULTS = {
     "fixed_pct": 0.05,
     # Whether the optional dissent layer participates.
     "debate_enabled": False,
+    # SEC requires a User-Agent naming a contact, e.g. "Jane Roe jane@example.com".
+    # Without one EDGAR returns 403, so US filings have no source configured.
+    "sec_contact": "",
+    # A free key from https://fredaccount.stlouisfed.org/apikeys. Without it the
+    # macro series that give the discount rate a source are unavailable.
+    "fred_api_key": "",
     # Concentration ceiling as a fraction of capital, applied after sizing.
     # Kelly knows nothing about the rest of a portfolio; this is where that
     # judgment lives. 1.0 means no ceiling.

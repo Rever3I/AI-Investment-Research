@@ -3,5 +3,7 @@
   "sizing_method": "half_kelly",
   "fixed_pct": 0.05,
   "debate_enabled": false,
+  "sec_contact": "",
+  "fred_api_key": "",
   "position_cap": 1.0
 }

@@ -50,9 +50,21 @@ result = size_position(
 ```
 
 `get_valuation` raises `FileNotFoundError` on a fresh install; catch it and say
-to run `research-valuation` first. The market price passes the Fact contract
-before it gets here — the whole calculation is a ratio against it, so a stale
-price silently scales the answer.
+to run `research-valuation` first.
+
+The market price passes the Fact contract before it gets here — the whole
+calculation is a ratio against it, so a stale price silently scales the answer.
+The price adapter needs no configuration:
+
+```python
+from skills._lib.data.adapters import configure, fetch
+from skills._lib.factcontract import verify
+
+configure()
+quote = fetch("price", ticker)[0]
+verify([quote])                 # intraday facts go stale in an hour
+current_price = quote.value
+```
 
 Four methods, all in the profile:
 

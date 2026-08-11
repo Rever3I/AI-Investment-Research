@@ -64,6 +64,20 @@ hand you. For a loss-maker, say the method does not fit and stop. Every number i
 contract first, grouped so a quarterly figure cannot end up divided by a
 trailing-twelve-month one:
 
+The SEC adapter returns exactly these four as Facts, already grouped:
+
+```python
+from skills._lib.data.adapters import configure, fetch
+from skills._lib.factcontract import verify
+
+configure()
+facts = fetch("us_equity", ticker)      # net income, D&A, capex, share count
+price = fetch("price", ticker)[0]       # the reverse DCF is a ratio against it
+verify(facts + [price])                 # hard-stops on anything stale
+```
+
+Fetched some other way, the same figures have to be declared by hand:
+
 ```python
 from skills._lib.factcontract import Fact, verify
 

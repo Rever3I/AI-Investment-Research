@@ -75,6 +75,29 @@ Cover these, in whatever order reads best for the company:
   deteriorate" applies to every equity ever issued and belongs in none of them.
 - **Variant perception** and **falsifiers**, as above.
 
+
+## Getting the numbers
+
+Adapters return `Fact` objects, so a figure arrives with its source, unit and
+as-of time already attached. Configure once, then fetch:
+
+```python
+from skills._lib.data.adapters import configure, fetch, status_report
+
+print(status_report(configure()))          # what can run in this installation
+facts = fetch("us_equity", ticker)         # net income, D&A, capex, share count
+price = fetch("price", ticker)[0]          # works with no configuration
+```
+
+If a domain reports itself unavailable, say which setting is missing rather than
+working around it — `status_report()` prints the exact key and where to get it.
+A number fetched some other way has no provenance, which is the thing this
+layer exists to prevent.
+
+Chinese listings need a licensed Wind terminal, and that adapter is unverified
+against a live one. If `cn_equity` is unavailable, say so plainly instead of
+substituting a US source.
+
 ## Numbers
 
 Every figure passes through the Fact contract before it reaches the write-up:
