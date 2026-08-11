@@ -305,3 +305,38 @@ def test_sellcheck_round_trip_dict():
     s = Sellcheck(thesis_id=1, trigger="user_initiated",
                   diff_summary="still_holds", rechecked_at="2026-08-04T12:00:00Z")
     assert Sellcheck.from_dict(s.to_dict()) == s
+
+
+# ── every record carries its primary key ──────────────────────────
+
+_RECORD_FACTORIES = {
+    "Candidate": lambda: Candidate(
+        ticker="NVDA", entry_path="screen", source_note="x", market="US",
+        raw_rationale="x", discovered_at="2026-08-04T12:00:00Z"),
+    "Thesis": lambda: Thesis(
+        candidate_id=1, business_overview="x", management="x",
+        competitors="x", tam="x", risks=["r"]),
+    "Valuation": lambda: Valuation(
+        thesis_id=1, scenarios=_scenarios(), discount_rate_source="x"),
+    "Verdict": lambda: Verdict(valuation_id=1, mode="checklist"),
+    "Portfolio": lambda: Portfolio(
+        valuation_id=1, sizing_method="half_kelly", recommended_position_pct=1.0),
+    "Sellcheck": lambda: Sellcheck(
+        thesis_id=1, trigger="user_initiated", diff_summary="still_holds"),
+}
+
+
+@pytest.mark.parametrize("name", sorted(_RECORD_FACTORIES))
+def test_every_record_has_an_id_defaulting_to_none(name):
+    """Each record is referenced by a later layer, which needs its row id. A
+    record that drops its primary key cannot be pointed at."""
+    record = _RECORD_FACTORIES[name]()
+    assert record.id is None
+    assert "id" in record.to_dict()
+
+
+@pytest.mark.parametrize("name", sorted(_RECORD_FACTORIES))
+def test_id_survives_a_dict_round_trip(name):
+    record = _RECORD_FACTORIES[name]()
+    record.id = 42
+    assert type(record).from_dict(record.to_dict()).id == 42

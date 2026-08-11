@@ -63,4 +63,4 @@ python -m pytest -q
 
 ## 当前进度
 
-基础层已完成：共享记录契约、SQLite 存储、Fact 契约、`research-intake` 层。其余各层和市场数据适配器（SEC EDGAR、Wind、FRED、新闻舆情）在后续版本中加入。可保存的筛选 profile 设计已定、尚未实现——目前 intake 跑的是通用搜索。
+已完成：共享记录契约、带外键约束的 SQLite 存储、Fact 契约，以及 `research-intake` 和 `research-thesis` 两层。估值及其下游各层、市场数据适配器（SEC EDGAR、Wind、FRED、新闻舆情）在后续版本中加入。可保存的筛选 profile 设计已定、尚未实现——目前 intake 跑的是通用搜索。

@@ -15,3 +15,20 @@ def isolated_fact_store(monkeypatch, tmp_path):
 
     monkeypatch.setattr(store_mod, "DB_PATH", tmp_path / "fact-store" / "research.db")
     return store_mod
+
+
+@pytest.fixture(autouse=True)
+def isolated_record_store(monkeypatch, tmp_path):
+    """Repoint the record stores' default database at a scratch path.
+
+    Tests pass an explicit db_path almost everywhere, but "almost" is the
+    problem: one store call that forgets it writes into the developer's real
+    database, and the only sign is a file that reappears after a test run. This
+    makes that impossible rather than relying on every future test remembering.
+    """
+    from skills._lib.data import db_init, store_support
+
+    scratch = tmp_path / "record-store" / "research.db"
+    monkeypatch.setattr(db_init, "DEFAULT_DB_PATH", scratch)
+    monkeypatch.setattr(store_support, "DEFAULT_DB_PATH", scratch)
+    return scratch

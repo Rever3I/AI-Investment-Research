@@ -5,50 +5,18 @@ research-intake writes here; research-thesis reads from here to pick up a
 candidate and continue the pipeline. Keeping the handoff in the database rather
 than in conversation is what lets the two layers run in separate sessions.
 
-Reads deliberately do not create the database. A misconfigured path should
-surface as "no such database" rather than quietly returning an empty list and
-leaving a stray database file behind.
-
-They check for the `candidates` table rather than for the file, because the
-Fact contract shares this database and creates it on first use with only
-`fact_log` in it. A file-existence check would pass there and then fail on the
-SELECT with a bare "no such table".
+Reads deliberately do not create the database, and they check for the table
+rather than the file — see store_support.open_for_read for why.
 """
 
 import sqlite3
 from contextlib import closing
 from pathlib import Path
 
-from .db_init import DEFAULT_DB_PATH, init_db
 from .schema import Candidate
+from .store_support import connect, open_for_read, open_for_write
 
-
-def _connect(path: Path):
-    conn = sqlite3.connect(str(path))
-    conn.row_factory = sqlite3.Row
-    return conn
-
-
-def _resolve(db_path) -> Path:
-    return Path(db_path) if db_path else DEFAULT_DB_PATH
-
-
-def _open_existing(db_path) -> Path:
-    """Resolve a path that must already hold a candidates table."""
-    path = _resolve(db_path)
-    if not path.exists() or not _has_candidates_table(path):
-        raise FileNotFoundError(
-            f"No candidates have been saved to {path} yet. Run research-intake "
-            f"first, or point db_path at a database that has them."
-        )
-    return path
-
-
-def _has_candidates_table(path: Path) -> bool:
-    with closing(_connect(path)) as conn:
-        return conn.execute(
-            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='candidates'"
-        ).fetchone() is not None
+_TABLE = "candidates"
 
 
 def _to_candidate(row: sqlite3.Row) -> Candidate:
@@ -67,9 +35,8 @@ def _to_candidate(row: sqlite3.Row) -> Candidate:
 
 def save_candidate(candidate: Candidate, db_path: Path = None) -> int:
     """Persist a Candidate, stamp its row id onto it, and return that id."""
-    path = _resolve(db_path)
-    init_db(path)
-    with closing(_connect(path)) as conn:
+    path = open_for_write(db_path)
+    with closing(connect(path)) as conn:
         cur = conn.execute(
             """INSERT INTO candidates
                (ticker, entry_path, source_note, market, raw_rationale,
@@ -86,8 +53,8 @@ def save_candidate(candidate: Candidate, db_path: Path = None) -> int:
 
 def get_candidate(candidate_id: int, db_path: Path = None):
     """Return one Candidate by row id, or None if there is no such row."""
-    path = _open_existing(db_path)
-    with closing(_connect(path)) as conn:
+    path = open_for_read(db_path, _TABLE)
+    with closing(connect(path)) as conn:
         row = conn.execute(
             "SELECT * FROM candidates WHERE id = ?", (candidate_id,)
         ).fetchone()
@@ -96,7 +63,7 @@ def get_candidate(candidate_id: int, db_path: Path = None):
 
 def list_candidates(market: str = None, db_path: Path = None, limit: int = None) -> list:
     """Return persisted Candidates newest first, optionally filtered by market."""
-    path = _open_existing(db_path)
+    path = open_for_read(db_path, _TABLE)
     sql = "SELECT * FROM candidates"
     params = []
     if market:
@@ -107,6 +74,6 @@ def list_candidates(market: str = None, db_path: Path = None, limit: int = None)
         sql += " LIMIT ?"
         params.append(int(limit))
 
-    with closing(_connect(path)) as conn:
+    with closing(connect(path)) as conn:
         rows = conn.execute(sql, params).fetchall()
     return [_to_candidate(r) for r in rows]

@@ -85,8 +85,9 @@ python -m pytest -q
 
 ## Status
 
-Foundation build: shared record schemas, SQLite storage, the Fact contract, and
-the `research-intake` layer. The remaining layers and the market data adapters
-(SEC EDGAR, Wind, FRED, news/alt-data) land in subsequent releases. Saved
+Built: shared record schemas, SQLite storage with enforced referential
+integrity, the Fact contract, and the `research-intake` and `research-thesis`
+layers. Valuation and everything downstream, plus the market data adapters
+(SEC EDGAR, Wind, FRED, news/alt-data), land in subsequent releases. Saved
 screening profiles are specified but not yet implemented — intake currently runs
 a general search.

@@ -126,6 +126,21 @@ CREATE INDEX IF NOT EXISTS idx_calibration_subsystem ON calibration_memory(subsy
 """
 
 
+def connect(db_path: Path = None) -> sqlite3.Connection:
+    """Open a connection with the settings every store in this package needs.
+
+    Foreign keys have to be switched on per connection: SQLite defaults them off
+    for backward compatibility, which makes every REFERENCES clause in the schema
+    above decorative. Without this, a thesis can name a candidate that never
+    existed, and nothing complains until a later lookup quietly returns nothing.
+    """
+    path = Path(db_path) if db_path else DEFAULT_DB_PATH
+    conn = sqlite3.connect(str(path))
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys=ON")
+    return conn
+
+
 def init_db(db_path: Path = None) -> None:
     """Create every table that does not already exist. Safe to call repeatedly."""
     db_path = Path(db_path) if db_path else DEFAULT_DB_PATH

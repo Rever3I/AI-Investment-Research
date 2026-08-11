@@ -120,6 +120,7 @@ class Thesis(_Record):
     falsifiers: list = field(default_factory=list)
     data_sources: list = field(default_factory=list)
     authored_at: str = ""
+    id: int = None
 
     def __post_init__(self):
         _require(self.candidate_id, "candidate_id", "Thesis")
@@ -144,6 +145,7 @@ class Valuation(_Record):
     discount_rate_source: str
     html_artifact_path: str = ""
     valued_at: str = ""
+    id: int = None
 
     def __post_init__(self):
         _require(self.thesis_id, "thesis_id", "Valuation")
@@ -171,6 +173,7 @@ class Verdict(_Record):
     votes: list = field(default_factory=list)
     dissent_map: str = ""
     authored_at: str = ""
+    id: int = None
 
     def __post_init__(self):
         _require(self.valuation_id, "valuation_id", "Verdict")
@@ -188,6 +191,7 @@ class Portfolio(_Record):
     recommended_position_pct: float
     kelly_inputs: dict = field(default_factory=dict)
     sized_at: str = ""
+    id: int = None
 
     def __post_init__(self):
         _require(self.valuation_id, "valuation_id", "Portfolio")
@@ -210,6 +214,7 @@ class Sellcheck(_Record):
     trigger: str             # "user_initiated" in v1
     diff_summary: str
     rechecked_at: str = ""
+    id: int = None
 
     def __post_init__(self):
         _require(self.thesis_id, "thesis_id", "Sellcheck")
