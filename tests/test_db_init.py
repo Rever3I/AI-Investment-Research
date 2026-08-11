@@ -41,8 +41,9 @@ def test_init_db_preserves_existing_rows(tmp_path):
     init_db(db_path)
     conn = sqlite3.connect(str(db_path))
     conn.execute(
-        "INSERT INTO candidates (ticker, entry_path, market, discovered_at) "
-        "VALUES ('NVDA', 'screen', 'US', '2026-08-04T12:00:00+00:00')"
+        "INSERT INTO candidates (ticker, entry_path, market, raw_rationale, "
+        "discovered_at) VALUES ('NVDA', 'screen', 'US', 'why', "
+        "'2026-08-04T12:00:00+00:00')"
     )
     conn.commit()
     conn.close()

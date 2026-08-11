@@ -49,10 +49,15 @@ candidate = get_candidate(candidate_id)          # if the user named an id
 recent = list_candidates(market="US", limit=10)  # to pick from
 ```
 
-If the user names a ticker with no candidate behind it, run `research-intake`
-first. A thesis cannot be saved without a real `candidate_id` — the database
-rejects it, deliberately, so that `research-sellcheck` can never resolve a
-thesis to a candidate that does not exist.
+Both raise `FileNotFoundError` when nothing has ever been saved — a fresh
+install has no candidates table at all. Catch it and tell the user to run
+`research-intake` first rather than surfacing a traceback.
+
+If the user names a ticker with no candidate behind it, the same applies: a
+thesis cannot be saved without a real `candidate_id`. `save_thesis` refuses it
+with a `ValueError` naming the id, and the database's foreign key would refuse
+it too, so that `research-sellcheck` can never resolve a thesis to a candidate
+that does not exist.
 
 ## The document
 
@@ -78,8 +83,10 @@ Every figure passes through the Fact contract before it reaches the write-up:
 from skills._lib.factcontract import Fact, verify
 
 verify([
+    # as_of is the period the figure describes. Use the real filing date — the
+    # ttm limit is 100 days, so a stale one hard-stops here rather than in print.
     Fact(name="NVDA_revenue_ttm", value=130_500_000_000, unit="usd", freq="ttm",
-         as_of="2026-05-28T00:00:00Z", source="sec-xbrl", entity="NVDA",
+         as_of=filing_date_iso, source="sec-xbrl", entity="NVDA",
          group="valuation"),
 ])
 ```

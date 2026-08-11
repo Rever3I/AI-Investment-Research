@@ -88,22 +88,37 @@ def test_dumps_keeps_cjk_readable_in_the_file():
 
 
 def test_dumps_and_loads_round_trip():
-    for value in ([], ["a", "b"], [{"k": 1}], {"a": 1}):
-        assert loads(dumps(value), type(value)()) == value
+    for value in ([], ["a", "b"], [{"k": 1}]):
+        assert loads(dumps(value), list) == value
+    assert loads(dumps({"a": 1}), dict) == {"a": 1}
 
 
 def test_loads_falls_back_on_damaged_json():
-    assert loads("{not json", []) == []
+    assert loads("{not json", list) == []
 
 
 def test_loads_falls_back_on_null_and_empty():
-    assert loads(None, []) == []
-    assert loads("", []) == []
+    assert loads(None, list) == []
+    assert loads("", list) == []
 
 
 def test_loads_falls_back_when_the_type_is_wrong():
     """A column that should hold a list but holds an object must not hand the
     caller a dict, which would then fail somewhere less obvious."""
-    assert loads(json.dumps({"a": 1}), []) == []
-    assert loads(json.dumps(["a"]), {}) == {}
-    assert loads(json.dumps("a string"), []) == []
+    assert loads(json.dumps({"a": 1}), list) == []
+    assert loads(json.dumps(["a"]), dict) == {}
+    assert loads(json.dumps("a string"), list) == []
+
+
+def test_loads_does_not_mistake_a_bool_for_a_container():
+    """bool is a subclass of int, and an isinstance-based check let it through."""
+    assert loads(json.dumps(True), list) == []
+    assert loads(json.dumps(1), list) == []
+
+
+def test_loads_rejects_a_fallback_value_in_place_of_a_type():
+    """Passing [] instead of list used to work by accident; passing None made it
+    silently discard every value. Both are now loud."""
+    for bad in ([], {}, None, str):
+        with pytest.raises(ValueError):
+            loads('["a"]', bad)

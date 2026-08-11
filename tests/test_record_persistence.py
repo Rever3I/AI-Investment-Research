@@ -191,10 +191,12 @@ def test_sellcheck_survives_its_keyword_named_column(conn):
 
 _TIMESTAMPED_TABLES = (
     ("candidates",
-     "INSERT INTO candidates (ticker, entry_path, market, discovered_at) "
-     "VALUES ('NVDA', 'screen', 'US', '2026-08-04T12:00:00+00:00')"),
+     "INSERT INTO candidates (ticker, entry_path, market, raw_rationale, "
+     "discovered_at) VALUES ('NVDA', 'screen', 'US', 'why', "
+     "'2026-08-04T12:00:00+00:00')"),
     ("theses",
-     "INSERT INTO theses (candidate_id) VALUES (1)"),
+     "INSERT INTO theses (candidate_id, business_overview, risks_json) "
+     "VALUES (1, 'overview', '[\"a risk\"]')"),
     ("valuations",
      "INSERT INTO valuations (thesis_id) VALUES (1)"),
     ("verdicts",
@@ -231,8 +233,9 @@ def test_created_at_defaults_are_actually_utc_not_local_time(conn):
 
     before = datetime.now(timezone.utc).replace(microsecond=0)
     conn.execute(
-        "INSERT INTO candidates (ticker, entry_path, market, discovered_at) "
-        "VALUES ('NVDA', 'screen', 'US', '2026-08-04T12:00:00+00:00')"
+        "INSERT INTO candidates (ticker, entry_path, market, raw_rationale, "
+        "discovered_at) VALUES ('NVDA', 'screen', 'US', 'why', "
+        "'2026-08-04T12:00:00+00:00')"
     )
     conn.commit()
     created_at = conn.execute("SELECT created_at FROM candidates").fetchone()[0]

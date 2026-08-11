@@ -14,10 +14,13 @@ fact_log is deliberately absent here: factcontract/store.py creates it itself so
 the Fact contract can run standalone, without this module having been imported.
 """
 
+import logging
 import sqlite3
 from pathlib import Path
 
 from ..paths import default_db_path
+
+_log = logging.getLogger(__name__)
 
 DEFAULT_DB_PATH = default_db_path()
 
@@ -25,11 +28,11 @@ DEFAULT_DB_PATH = default_db_path()
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS candidates (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    ticker          TEXT NOT NULL,
+    ticker          TEXT NOT NULL CHECK (length(ticker) > 0),
     entry_path      TEXT NOT NULL,
     source_note     TEXT NOT NULL DEFAULT '',
-    market          TEXT NOT NULL,
-    raw_rationale   TEXT NOT NULL DEFAULT '',
+    market          TEXT NOT NULL CHECK (length(market) > 0),
+    raw_rationale   TEXT NOT NULL CHECK (length(raw_rationale) > 0),
     discovered_at   TEXT NOT NULL,
     screened        INTEGER NOT NULL DEFAULT 0,
     profile_used    TEXT NOT NULL DEFAULT '',
@@ -41,11 +44,11 @@ CREATE INDEX IF NOT EXISTS idx_candidates_market ON candidates(market);
 CREATE TABLE IF NOT EXISTS theses (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     candidate_id        INTEGER NOT NULL REFERENCES candidates(id),
-    business_overview   TEXT NOT NULL DEFAULT '',
+    business_overview   TEXT NOT NULL CHECK (length(business_overview) > 0),
     management          TEXT NOT NULL DEFAULT '',
     competitors         TEXT NOT NULL DEFAULT '',
     tam                 TEXT NOT NULL DEFAULT '',
-    risks_json          TEXT NOT NULL DEFAULT '[]',
+    risks_json          TEXT NOT NULL CHECK (risks_json NOT IN ('', '[]')),
     variant_perception  TEXT NOT NULL DEFAULT '',
     falsifiers_json     TEXT NOT NULL DEFAULT '[]',
     data_sources_json   TEXT NOT NULL DEFAULT '[]',
@@ -135,20 +138,37 @@ def connect(db_path: Path = None) -> sqlite3.Connection:
     existed, and nothing complains until a later lookup quietly returns nothing.
     """
     path = Path(db_path) if db_path else DEFAULT_DB_PATH
-    conn = sqlite3.connect(str(path))
+    # timeout matches factcontract/store.py: both write the same file, and
+    # mismatched lock timeouts make one of them give up while the other waits.
+    conn = sqlite3.connect(str(path), timeout=10)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys=ON")
     return conn
 
 
 def init_db(db_path: Path = None) -> None:
-    """Create every table that does not already exist. Safe to call repeatedly."""
+    """Create every table that does not already exist. Safe to call repeatedly.
+
+    Also reports pre-existing orphans. Foreign keys are enforced per connection
+    and are not retroactive, so a database written before enforcement was added
+    can hold rows that would be rejected today. Silently carrying them would
+    make the guarantee this package advertises untrue for exactly the files most
+    likely to need it.
+    """
     db_path = Path(db_path) if db_path else DEFAULT_DB_PATH
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(db_path))
+    conn = sqlite3.connect(str(db_path), timeout=10)
     try:
         conn.execute("PRAGMA journal_mode=WAL")
         conn.executescript(_SCHEMA)
         conn.commit()
+        violations = conn.execute("PRAGMA foreign_key_check").fetchall()
+        if violations:
+            _log.warning(
+                "%s holds %d row(s) referencing records that do not exist. They "
+                "predate foreign-key enforcement and are skipped on read: %s",
+                db_path, len(violations),
+                ", ".join(f"{v[0]} id={v[1]}" for v in violations[:5]),
+            )
     finally:
         conn.close()

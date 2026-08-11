@@ -23,12 +23,17 @@ def isolated_record_store(monkeypatch, tmp_path):
 
     Tests pass an explicit db_path almost everywhere, but "almost" is the
     problem: one store call that forgets it writes into the developer's real
-    database, and the only sign is a file that reappears after a test run. This
-    makes that impossible rather than relying on every future test remembering.
+    database, and the only sign is a file that reappears after a test run.
+
+    One patch point is enough because `store_support.resolve` reads
+    `db_init.DEFAULT_DB_PATH` through the module rather than binding its value,
+    and every store resolves through it. A store that instead did
+    `from .db_init import DEFAULT_DB_PATH` would bind the real path at import
+    and escape this fixture — which is why store_support documents that as
+    forbidden, and why test_store_isolation.py checks the rule holds.
     """
-    from skills._lib.data import db_init, store_support
+    from skills._lib.data import db_init
 
     scratch = tmp_path / "record-store" / "research.db"
     monkeypatch.setattr(db_init, "DEFAULT_DB_PATH", scratch)
-    monkeypatch.setattr(store_support, "DEFAULT_DB_PATH", scratch)
     return scratch

@@ -14,9 +14,18 @@ from contextlib import closing
 from pathlib import Path
 
 from .schema import Candidate
-from .store_support import connect, open_for_read, open_for_write
+from .store_support import (
+    connect,
+    materialise,
+    materialise_one,
+    open_for_read,
+    open_for_write,
+)
 
 _TABLE = "candidates"
+
+# See thesis_store for why insertion order is not a recency proxy.
+_NEWEST_FIRST = "ORDER BY COALESCE(NULLIF(discovered_at, ''), created_at) DESC, id DESC"
 
 
 def _to_candidate(row: sqlite3.Row) -> Candidate:
@@ -52,28 +61,32 @@ def save_candidate(candidate: Candidate, db_path: Path = None) -> int:
 
 
 def get_candidate(candidate_id: int, db_path: Path = None):
-    """Return one Candidate by row id, or None if there is no such row."""
+    """Return one Candidate by row id, or None if there is no such row.
+
+    Raises UnreadableRecord if the row exists but does not satisfy the record
+    contract.
+    """
     path = open_for_read(db_path, _TABLE)
     with closing(connect(path)) as conn:
         row = conn.execute(
             "SELECT * FROM candidates WHERE id = ?", (candidate_id,)
         ).fetchone()
-    return _to_candidate(row) if row else None
+    return materialise_one(row, _to_candidate, _TABLE)
 
 
 def list_candidates(market: str = None, db_path: Path = None, limit: int = None) -> list:
-    """Return persisted Candidates newest first, optionally filtered by market."""
+    """Return persisted Candidates newest first, skipping any that cannot be read."""
     path = open_for_read(db_path, _TABLE)
     sql = "SELECT * FROM candidates"
     params = []
     if market:
         sql += " WHERE market = ?"
         params.append(market)
-    sql += " ORDER BY id DESC"
+    sql += f" {_NEWEST_FIRST}"
     if limit is not None:
         sql += " LIMIT ?"
         params.append(int(limit))
 
     with closing(connect(path)) as conn:
         rows = conn.execute(sql, params).fetchall()
-    return [_to_candidate(r) for r in rows]
+    return materialise(rows, _to_candidate, _TABLE)
