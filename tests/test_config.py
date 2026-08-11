@@ -197,3 +197,31 @@ def test_shipped_sizing_method_is_one_the_storage_layer_accepts():
     from skills._lib.data.schema import SIZING_METHODS
 
     assert config.DEFAULTS["sizing_method"] in SIZING_METHODS
+
+
+def test_a_round_number_is_accepted_for_a_float_setting(tmp_path):
+    """JSON writes 0 and 1 without a decimal point, so a float setting arrives
+    as an int whenever the user types a round number. Rejecting those sent
+    position_cap: 0 back to a default of no cap at all."""
+    path = _write(tmp_path / "p.json", {"position_cap": 0})
+    assert config.load_profile(path)["position_cap"] == 0.0
+
+    path = _write(tmp_path / "q.json", {"position_cap": 1})
+    assert config.load_profile(path)["position_cap"] == 1.0
+
+
+def test_a_float_setting_still_rejects_a_string(tmp_path):
+    path = _write(tmp_path / "p.json", {"position_cap": "0.05"})
+    assert config.load_profile(path)["position_cap"] == config.DEFAULTS["position_cap"]
+
+
+def test_a_float_setting_rejects_a_bool(tmp_path):
+    path = _write(tmp_path / "p.json", {"position_cap": True})
+    assert config.load_profile(path)["position_cap"] == config.DEFAULTS["position_cap"]
+
+
+def test_fixed_pct_has_a_value_behind_it():
+    """Selecting sizing_method 'fixed_pct' used to crash: nothing in the profile
+    carried the weight it needs."""
+    assert isinstance(config.DEFAULTS["fixed_pct"], float)
+    assert 0 < config.DEFAULTS["fixed_pct"] <= 1

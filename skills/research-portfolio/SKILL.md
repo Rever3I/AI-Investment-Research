@@ -44,7 +44,8 @@ result = size_position(
     valuation.scenarios,
     market_price=current_price,          # verified, not remembered
     method=profile["sizing_method"],     # half_kelly by default
-    cap=profile.get("position_cap"),     # optional concentration limit
+    weight=profile["fixed_pct"],         # only used by fixed_pct and custom
+    cap=profile["position_cap"],         # concentration limit; 1.0 is none
 )
 ```
 
@@ -53,14 +54,20 @@ to run `research-valuation` first. The market price passes the Fact contract
 before it gets here — the whole calculation is a ratio against it, so a stale
 price silently scales the answer.
 
-Three methods, all in the profile:
+Four methods, all in the profile:
 
 - `half_kelly` (default) — the usual hedge against the probabilities being
   wrong. Full Kelly is growth-optimal only if they are exactly right, and its
   drawdowns are severe when they are not.
 - `full_kelly` — available, and the result says what it costs.
-- `fixed_pct` — ignores the edge entirely and uses a set weight. The result
-  still reports what Kelly would have said, for comparison.
+- `fixed_pct` — ignores the edge and uses the profile's `fixed_pct` weight.
+- `custom` — the user sized it themselves; pass their number as `weight=`.
+
+The last two still report what Kelly would have said, for comparison.
+
+Every fraction here is a fraction, not a percentage: `0.05` is five percent of
+capital. Passing `5` meaning five percent is refused rather than silently
+sized a hundredfold too large.
 
 ## The answers that surprise people
 
@@ -70,13 +77,19 @@ bet, not a missing number, and reporting it as "no recommendation" misrepresents
 it. Say the edge is not there at this price.
 
 **A capped position is not the same as an uncapped one.** If a concentration
-limit bound the answer, `result.note` says so. Pass that on — the difference
-between "Kelly wants 30% and your limit says 5%" and "Kelly wants 5%" matters to
-whoever is deciding.
+limit bound the answer, `result.capped` is true and the note says so. Pass that
+on — the difference between "Kelly wants 30% and your limit says 5%" and "Kelly
+wants 5%" matters to whoever is deciding.
 
 **An optimum above 100% is reported as 100%, not as leverage.** The module does
 not size a levered position; if the edge is that large, the constraint is
-something other than arithmetic.
+something other than arithmetic. When that happens `result.clipped` is true and
+the note says so — pass it on, because otherwise `full_kelly` reads as an
+optimum when it is a ceiling, and half of a ceiling is not half Kelly.
+
+**A price target far above the price is refused as a unit error.** The usual
+cause is a total equity value where a per-share figure belongs, which would
+otherwise size the position at the maximum on a fictional 200x return.
 
 **A scenario implying total loss is refused.** Kelly is undefined against an
 outcome that wipes the position out, and that case needs a decision about
@@ -94,6 +107,8 @@ portfolio = Portfolio(
     recommended_position_pct=float(result.percent),
     kelly_inputs={
         "full_kelly": float(result.full_kelly),
+        "clipped": result.clipped,      # full_kelly is a ceiling, not the optimum
+        "capped": result.capped,        # the concentration limit bound the answer
         "expected_return": float(result.expected_return),
         "market_price": float(current_price),
         "outcomes": [

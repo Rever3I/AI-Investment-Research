@@ -1,6 +1,7 @@
 {
   "output_language": "en",
   "sizing_method": "half_kelly",
+  "fixed_pct": 0.05,
   "debate_enabled": false,
   "position_cap": 1.0
 }

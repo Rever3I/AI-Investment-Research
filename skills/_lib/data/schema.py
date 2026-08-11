@@ -151,6 +151,15 @@ class Valuation(_Record):
         _require(self.thesis_id, "thesis_id", "Valuation")
         if not self.scenarios:
             raise SchemaError("Valuation: scenarios must have at least one entry")
+        for scenario in self.scenarios:
+            # A set like +0.5 / -0.5 / +1.0 sums to 1 and is still nonsense.
+            # research-portfolio rejects it, so accepting it here would let a
+            # valuation persist that hard-fails two layers later.
+            if scenario.get("probability", 0) < 0:
+                raise SchemaError(
+                    f"Valuation: scenario {scenario.get('name', '?')!r} has a "
+                    f"negative probability"
+                )
         total = sum(s.get("probability", 0) for s in self.scenarios)
         if abs(total - 1.0) > _PROBABILITY_TOLERANCE:
             raise SchemaError(

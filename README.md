@@ -56,6 +56,7 @@ to put it somewhere else.
 {
   "output_language": "en",
   "sizing_method": "half_kelly",
+  "fixed_pct": 0.05,
   "debate_enabled": false,
   "position_cap": 1.0
 }
@@ -67,6 +68,8 @@ to put it somewhere else.
   does not change the code's own logs and error messages, which stay English so
   a traceback is searchable by anyone.
 - `sizing_method` — `half_kelly`, `full_kelly`, `fixed_pct`, or `custom`
+- `fixed_pct` — the weight used when `sizing_method` is `fixed_pct`, as a
+  fraction of capital. `custom` takes its weight from the caller instead
 - `debate_enabled` — whether the optional dissent layer participates
 - `position_cap` — concentration ceiling as a fraction of capital, applied after
   sizing. Kelly knows nothing about the rest of a portfolio; `1.0` is no ceiling

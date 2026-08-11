@@ -174,15 +174,47 @@ def test_half_kelly_is_the_default():
 
 def test_fixed_pct_ignores_the_edge_but_still_reports_kelly():
     result = size_position(_scenarios(), market_price=100, method="fixed_pct",
-                           fixed_pct="0.05")
+                           weight="0.05")
     assert result.fraction == Decimal("0.05")
     assert result.full_kelly > 0
     assert "comparison" in result.note
 
 
-def test_fixed_pct_without_a_value_is_refused():
-    with pytest.raises(SizingError):
-        size_position(_scenarios(), market_price=100, method="fixed_pct")
+@pytest.mark.parametrize("method", ["fixed_pct", "custom"])
+def test_a_caller_supplied_weight_is_used_as_given(method):
+    result = size_position(_scenarios(), market_price=100, method=method,
+                           weight="0.07")
+    assert result.fraction == Decimal("0.07")
+    assert result.method == method
+
+
+@pytest.mark.parametrize("method", ["fixed_pct", "custom"])
+def test_a_weightless_caller_method_says_what_is_missing(method):
+    """Both were documented in the README; one crashed with an unhelpful
+    message and the other was not implemented at all."""
+    with pytest.raises(SizingError) as excinfo:
+        size_position(_scenarios(), market_price=100, method=method)
+    assert "weight" in str(excinfo.value)
+
+
+@pytest.mark.parametrize("method", ["half_kelly", "full_kelly", "fixed_pct", "custom"])
+def test_every_documented_method_is_usable(method):
+    """schema.SIZING_METHODS and both READMEs advertise these four, and a test
+    enforces the READMEs. Any that raises is a documented feature that is not
+    there."""
+    from skills._lib.data.schema import SIZING_METHODS
+
+    assert method in SIZING_METHODS
+    kwargs = {"weight": "0.05"} if method in ("fixed_pct", "custom") else {}
+    result = size_position(_scenarios(), market_price=100, method=method, **kwargs)
+    assert result.fraction >= 0
+
+
+def test_a_weight_above_all_the_capital_is_refused():
+    """5 meaning 5% is the obvious slip, and it would be a hundredfold error."""
+    with pytest.raises(SizingError) as excinfo:
+        size_position(_scenarios(), market_price=100, method="fixed_pct", weight=5)
+    assert "fractions" in str(excinfo.value)
 
 
 def test_an_unknown_method_is_refused_by_name():
@@ -244,3 +276,79 @@ def test_an_optimum_beyond_full_capital_is_capped_rather_than_levered():
     outcomes = scenario_returns(_scenarios(), market_price=100)
     assert kelly_fraction(outcomes) == Decimal(1)
     assert size_position(_scenarios(), market_price=100).fraction == Decimal("0.5")
+
+
+# ── the reported number must mean what the reader thinks ──────────
+
+def test_a_clipped_optimum_is_flagged_and_explained():
+    """+100%/+20%/-40% at 25/50/25 has an optimum above all of the capital, so
+    half Kelly reports 50% of capital in one name. Nothing in the result used to
+    distinguish 'the optimum was 1.0' from 'the optimum was 3.7 and we censored
+    it', which is the difference between a Kelly answer and a ceiling."""
+    result = size_position(_scenarios(), market_price=100)
+    assert result.clipped is True
+    assert result.full_kelly == Decimal(1)
+    assert "above 100%" in result.note
+    assert "ceiling" in result.note
+
+
+def test_an_interior_optimum_is_not_flagged_as_clipped():
+    result = size_position(_scenarios(bear=30.0), market_price=100)
+    assert result.clipped is False
+    assert "ceiling" not in result.note
+
+
+def test_a_capped_result_says_it_was_capped_in_data_not_only_prose():
+    result = size_position(_scenarios(), market_price=100, cap="0.05")
+    assert result.capped is True
+    assert result.fraction == Decimal("0.05")
+
+
+def test_an_uncapped_result_is_not_marked_capped():
+    assert size_position(_scenarios(), market_price=100).capped is False
+
+
+def test_a_cap_above_all_the_capital_is_refused_rather_than_ignored():
+    """`5` meaning 5% used to pass straight through and never bind, silently
+    leaving the position uncapped."""
+    with pytest.raises(SizingError) as excinfo:
+        size_position(_scenarios(), market_price=100, cap=5)
+    assert "fractions" in str(excinfo.value)
+
+
+def test_an_impossible_return_is_refused_as_a_unit_error():
+    """price_target can be a total equity value when no share count was given.
+    Sizing used to accept a +20,000,000,000% return and size at the ceiling."""
+    absurd = [
+        {"name": "bull", "price_target": 6e10, "probability": 0.5},
+        {"name": "bear", "price_target": 90.0, "probability": 0.5},
+    ]
+    with pytest.raises(SizingError) as excinfo:
+        size_position(absurd, market_price=100)
+    assert "unit error" in str(excinfo.value)
+
+
+def test_a_negative_probability_is_caught_even_when_the_set_sums_to_one():
+    """+0.5 / -0.5 / +1.0 sums to 1 and is still nonsense."""
+    sneaky = [
+        {"name": "a", "price_target": 200.0, "probability": 0.5},
+        {"name": "b", "price_target": 150.0, "probability": -0.5},
+        {"name": "c", "price_target": 120.0, "probability": 1.0},
+    ]
+    with pytest.raises(SizingError) as excinfo:
+        scenario_returns(sneaky, market_price=100)
+    assert "negative probability" in str(excinfo.value)
+
+
+def test_the_valuation_record_refuses_what_sizing_refuses():
+    """A record that persists and then hard-fails two layers later is worse than
+    one that never persists."""
+    from skills._lib.data.schema import SchemaError, Valuation
+
+    with pytest.raises(SchemaError) as excinfo:
+        Valuation(thesis_id=1, discount_rate_source="x", scenarios=[
+            {"name": "a", "price_target": 200.0, "probability": 0.5},
+            {"name": "b", "price_target": 150.0, "probability": -0.5},
+            {"name": "c", "price_target": 120.0, "probability": 1.0},
+        ])
+    assert "negative probability" in str(excinfo.value)

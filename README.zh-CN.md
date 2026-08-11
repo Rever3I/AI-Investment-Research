@@ -43,6 +43,7 @@ pip install -e .
 {
   "output_language": "en",
   "sizing_method": "half_kelly",
+  "fixed_pct": 0.05,
   "debate_enabled": false,
   "position_cap": 1.0
 }
@@ -50,6 +51,7 @@ pip install -e .
 
 - `output_language` —— **研究成果用什么语言写**（thesis 正文、估值说明、结论）。填 `zh-CN` 就出中文研报，不需要另一套代码。语言标签不设白名单。注意这不影响程序自身的日志和报错，那些保持英文，方便任何人搜索排查。
 - `sizing_method` —— 仓位算法：`half_kelly` / `full_kelly` / `fixed_pct` / `custom`
+- `fixed_pct` —— `sizing_method` 选 `fixed_pct` 时使用的固定仓位（占总资金的比例）；`custom` 则由调用方直接给出权重
 - `debate_enabled` —— 是否启用可选的分歧辩论层
 - `position_cap` —— 集中度上限（占总资金的比例），在算完仓位后套用。Kelly 不知道组合里还有什么，这一层判断放在这里；`1.0` 表示不设上限
 

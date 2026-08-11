@@ -30,6 +30,10 @@ _MIN_RETURN = Decimal("-1")
 
 # Numerical search bounds for the fraction of capital.
 _MAX_FRACTION = Decimal("1")
+
+# A price target more than this far above the price is a unit mistake. The usual
+# way in is a total equity value where a per-share figure belongs.
+_MAX_PLAUSIBLE_RETURN = Decimal("20")
 _TOLERANCE = Decimal("0.0000001")
 _MAX_ITERATIONS = 200
 
@@ -55,6 +59,12 @@ class SizingResult:
     expected_return: Decimal
     outcomes: list = field(default_factory=list)
     note: str = ""
+    # True when the unconstrained optimum was above 100% of capital and
+    # full_kelly is therefore a ceiling rather than the Kelly answer. Without
+    # this, a reader comparing full_kelly across two names cannot tell which is
+    # a real optimum and which was censored.
+    clipped: bool = False
+    capped: bool = False
 
     @property
     def percent(self) -> Decimal:
@@ -80,10 +90,18 @@ def scenario_returns(scenarios, market_price) -> list:
             raise SizingError(f"scenario {name!r} has a negative probability")
         total_probability += probability
         target = _dec(scenario["price_target"], f"{name}.price_target")
+        implied = target / price - Decimal(1)
+        if implied > _MAX_PLAUSIBLE_RETURN:
+            raise SizingError(
+                f"scenario {name!r} implies a return of {implied:.0%}. A price "
+                f"target that far above the price is a unit error, not an "
+                f"opportunity: check whether it is a per-share figure or a total "
+                f"equity value."
+            )
         out.append({
             "name": name,
             "probability": probability,
-            "return": target / price - Decimal(1),
+            "return": implied,
         })
 
     if abs(total_probability - Decimal(1)) > Decimal("0.01"):
@@ -108,7 +126,7 @@ def _expected_log_growth_slope(fraction: Decimal, outcomes) -> Decimal:
     return slope
 
 
-def kelly_fraction(outcomes) -> Decimal:
+def kelly_fraction(outcomes, want_clipped: bool = False):
     """The full-Kelly fraction for a set of probability-weighted returns.
 
     Solves for where expected log growth stops rising. Returns 0 when the
@@ -127,54 +145,83 @@ def kelly_fraction(outcomes) -> Decimal:
                 f"needs a decision about whether to hold it at all."
             )
 
+    def answer(fraction, clipped):
+        return (fraction, clipped) if want_clipped else fraction
+
     # At f=0 the slope is the expected return. Not positive means no edge.
     if _expected_log_growth_slope(Decimal(0), outcomes) <= 0:
-        return Decimal(0)
+        return answer(Decimal(0), False)
     # A slope still positive at full capital means the optimum is at or beyond
-    # it; without leverage the answer is all of it.
+    # it; without leverage the answer is all of it, and the caller needs to know
+    # that this is a ceiling rather than the optimum.
     if _expected_log_growth_slope(_MAX_FRACTION, outcomes) > 0:
-        return _MAX_FRACTION
+        return answer(_MAX_FRACTION, True)
 
     low, high = Decimal(0), _MAX_FRACTION
     for _ in range(_MAX_ITERATIONS):
         mid = (low + high) / 2
         slope = _expected_log_growth_slope(mid, outcomes)
         if abs(slope) < _TOLERANCE:
-            return mid
+            return answer(mid, False)
         if slope > 0:
             low = mid
         else:
             high = mid
-    return (low + high) / 2
+    return answer((low + high) / 2, False)
+
+
+METHODS = ("half_kelly", "full_kelly", "fixed_pct", "custom")
 
 
 def size_position(
     scenarios,
     market_price,
     method: str = "half_kelly",
-    fixed_pct=None,
+    weight=None,
     cap=None,
 ) -> SizingResult:
     """Recommend a position weight from scenario probabilities.
 
-    method      "half_kelly" (default), "full_kelly", or "fixed_pct"
-    fixed_pct   required for "fixed_pct"; the weight to use regardless of edge
-    cap         optional ceiling, as a fraction. A concentration limit is a
-                portfolio decision Kelly knows nothing about.
+    method       one of METHODS. "half_kelly" is the default.
+    weight       the fraction of capital to use, required by "fixed_pct" (a
+                 standing policy weight) and "custom" (a weight the caller
+                 arrived at some other way). Ignored by the Kelly methods.
+    cap          optional ceiling, as a fraction of capital. A concentration
+                 limit is a portfolio decision Kelly knows nothing about.
+
+    All fractions here are fractions, not percentages: 0.05 is five percent of
+    capital. `SizingResult.percent` converts for display.
     """
     outcomes = scenario_returns(scenarios, market_price)
     expected = sum(o["probability"] * o["return"] for o in outcomes)
 
-    if method == "fixed_pct":
-        if fixed_pct is None:
-            raise SizingError("method 'fixed_pct' needs a fixed_pct value")
-        fraction = _dec(fixed_pct, "fixed_pct")
+    if method not in METHODS:
+        raise SizingError(
+            f"unknown sizing method {method!r}; expected one of {list(METHODS)}"
+        )
+
+    if method in ("fixed_pct", "custom"):
+        if weight is None:
+            raise SizingError(
+                f"method {method!r} needs a weight: it does not derive one from "
+                f"the scenarios. Set `fixed_pct` in your profile, or pass "
+                f"weight= directly."
+            )
+        fraction = _dec(weight, "weight")
         if fraction < 0:
-            raise SizingError(f"fixed_pct cannot be negative, got {fraction}")
-        full = kelly_fraction(outcomes)
-        note = "Fixed weight; the Kelly figure is shown for comparison only."
-    elif method in ("half_kelly", "full_kelly"):
-        full = kelly_fraction(outcomes)
+            raise SizingError(f"weight cannot be negative, got {fraction}")
+        if fraction > _MAX_FRACTION:
+            raise SizingError(
+                f"weight={fraction} is more than all of the capital. Weights are "
+                f"fractions here: 0.05 is five percent, 5 is five hundred."
+            )
+        full, clipped = kelly_fraction(outcomes, want_clipped=True)
+        note = (
+            "Weight set by the caller, not derived from the edge; the Kelly "
+            "figure is shown for comparison only."
+        )
+    else:
+        full, clipped = kelly_fraction(outcomes, want_clipped=True)
         fraction = full if method == "full_kelly" else full / 2
         if full == 0:
             note = (
@@ -185,22 +232,31 @@ def size_position(
         elif method == "full_kelly":
             note = (
                 "Full Kelly is growth-optimal only if these probabilities are "
-                "exactly right, and it drawdowns hard when they are not."
+                "exactly right, and its drawdowns are severe when they are not."
             )
         else:
             note = "Half Kelly: the usual hedge against the probabilities being wrong."
-    else:
-        raise SizingError(
-            f"unknown sizing method {method!r}; expected half_kelly, full_kelly "
-            f"or fixed_pct"
+
+    if clipped:
+        note += (
+            " The unconstrained optimum is above 100% of capital, so the Kelly "
+            "figure shown is that ceiling rather than the optimum itself."
         )
 
+    capped = False
     if cap is not None:
         ceiling = _dec(cap, "cap")
         if ceiling < 0:
             raise SizingError(f"cap cannot be negative, got {ceiling}")
+        if ceiling > _MAX_FRACTION:
+            raise SizingError(
+                f"cap={ceiling} is above all of the capital. Caps are fractions "
+                f"here: 0.05 is a five percent limit, 5 is five hundred percent "
+                f"and would never bind."
+            )
         if fraction > ceiling:
             fraction = ceiling
+            capped = True
             note += f" Capped at {ceiling:.1%} by the configured concentration limit."
 
     return SizingResult(
@@ -210,4 +266,6 @@ def size_position(
         expected_return=expected,
         outcomes=outcomes,
         note=note,
+        clipped=clipped,
+        capped=capped,
     )

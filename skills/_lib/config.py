@@ -34,6 +34,9 @@ _DEFAULTS = {
     "output_language": "en",
     # Position sizing, consumed by research-portfolio.
     "sizing_method": "half_kelly",
+    # The weight used when sizing_method is "fixed_pct", as a fraction of
+    # capital. Without this, selecting that method has no number behind it.
+    "fixed_pct": 0.05,
     # Whether the optional dissent layer participates.
     "debate_enabled": False,
     # Concentration ceiling as a fraction of capital, applied after sizing.
@@ -66,6 +69,15 @@ def _coerce(loaded: dict, source: Path) -> dict:
         # bool is a subclass of int, so check it first and exactly.
         if expected is bool:
             ok = isinstance(value, bool)
+        elif expected is float:
+            # JSON has one number type and writes 0 and 1 without a decimal
+            # point, so a float setting arrives as an int whenever the user
+            # types a round number. Rejecting those sent `position_cap: 0`
+            # back to the default of no cap at all — the opposite of what was
+            # asked for.
+            ok = isinstance(value, (int, float)) and not isinstance(value, bool)
+            if ok:
+                value = float(value)
         else:
             ok = isinstance(value, expected) and not isinstance(value, bool)
         if not ok:
