@@ -36,6 +36,10 @@ _DEFAULTS = {
     "sizing_method": "half_kelly",
     # Whether the optional dissent layer participates.
     "debate_enabled": False,
+    # Concentration ceiling as a fraction of capital, applied after sizing.
+    # Kelly knows nothing about the rest of a portfolio; this is where that
+    # judgment lives. 1.0 means no ceiling.
+    "position_cap": 1.0,
 }
 
 # Read-only view, so an import cannot poison every later caller in the process.

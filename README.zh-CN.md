@@ -43,13 +43,15 @@ pip install -e .
 {
   "output_language": "en",
   "sizing_method": "half_kelly",
-  "debate_enabled": false
+  "debate_enabled": false,
+  "position_cap": 1.0
 }
 ```
 
 - `output_language` —— **研究成果用什么语言写**（thesis 正文、估值说明、结论）。填 `zh-CN` 就出中文研报，不需要另一套代码。语言标签不设白名单。注意这不影响程序自身的日志和报错，那些保持英文，方便任何人搜索排查。
-- `sizing_method` —— 仓位算法：`half_kelly` / `full_kelly` / `fixed_pct` / `custom`（由 research-portfolio 读取，该层尚未发布）
-- `debate_enabled` —— 是否启用可选的分歧辩论层（由 research-debate 读取，该层尚未发布）
+- `sizing_method` —— 仓位算法：`half_kelly` / `full_kelly` / `fixed_pct` / `custom`
+- `debate_enabled` —— 是否启用可选的分歧辩论层
+- `position_cap` —— 集中度上限（占总资金的比例），在算完仓位后套用。Kelly 不知道组合里还有什么，这一层判断放在这里；`1.0` 表示不设上限
 
 用 JSON 而不是 YAML：本项目零第三方依赖，而标准库没有 YAML 解析器。
 
@@ -63,4 +65,6 @@ python -m pytest -q
 
 ## 当前进度
 
-已完成：共享记录契约、带外键约束的 SQLite 存储、Fact 契约、基于 Decimal 的股东盈余 DCF（含反向 DCF 与多情景），以及 `research-intake`、`research-thesis`、`research-valuation` 三层。分歧层、仓位层、卖出复查层，以及市场数据适配器（SEC EDGAR、Wind、FRED、新闻舆情）在后续版本中加入。可保存的筛选 profile 设计已定、尚未实现——目前 intake 跑的是通用搜索。
+六层全部建成，连同它们共用的底座：记录契约、带外键约束的 SQLite 存储、Fact 契约、基于 Decimal 的股东盈余 DCF（含反向 DCF 与多情景），以及能处理多结果分布（而不只是二元情形）的 Kelly 仓位求解器。
+
+尚未完成的是市场数据适配器（SEC EDGAR、Wind、FRED、新闻舆情）——所以目前各层的数字来自宿主提供的搜索，经 Fact 契约核验后使用。可保存的筛选 profile 设计已定、尚未实现，intake 跑的是通用搜索。

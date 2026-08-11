@@ -56,7 +56,8 @@ to put it somewhere else.
 {
   "output_language": "en",
   "sizing_method": "half_kelly",
-  "debate_enabled": false
+  "debate_enabled": false,
+  "position_cap": 1.0
 }
 ```
 
@@ -65,10 +66,10 @@ to put it somewhere else.
   produces Chinese reports; any language tag works, there is no whitelist. It
   does not change the code's own logs and error messages, which stay English so
   a traceback is searchable by anyone.
-- `sizing_method` — `half_kelly`, `full_kelly`, `fixed_pct`, or `custom` (read by
-  research-portfolio, which ships later)
-- `debate_enabled` — whether the optional dissent layer participates (read by
-  research-debate, which ships later)
+- `sizing_method` — `half_kelly`, `full_kelly`, `fixed_pct`, or `custom`
+- `debate_enabled` — whether the optional dissent layer participates
+- `position_cap` — concentration ceiling as a fraction of capital, applied after
+  sizing. Kelly knows nothing about the rest of a portfolio; `1.0` is no ceiling
 
 JSON rather than YAML: this project ships no third-party dependencies, and the
 standard library has no YAML parser.
@@ -85,10 +86,13 @@ python -m pytest -q
 
 ## Status
 
-Built: shared record schemas, SQLite storage with enforced referential
-integrity, the Fact contract, a Decimal owner-earnings DCF with reverse-DCF and
-scenario support, and the `research-intake`, `research-thesis` and
-`research-valuation` layers. The dissent, sizing and sellcheck layers, plus the
-market data adapters (SEC EDGAR, Wind, FRED, news/alt-data), land in subsequent
-releases. Saved screening profiles are specified but not yet implemented —
-intake currently runs a general search.
+All six layers are built, along with the foundation they share: record
+schemas, SQLite storage with enforced referential integrity, the Fact contract,
+a Decimal owner-earnings DCF with reverse-DCF and scenarios, and a Kelly sizing
+solver that handles multi-outcome distributions rather than only the binary
+case.
+
+Still to come: the market data adapters (SEC EDGAR, Wind, FRED, news/alt-data),
+which is why every layer currently takes its numbers from whatever search the
+host provides, verified through the Fact contract. Saved screening profiles are
+specified but not yet implemented — intake runs a general search.
