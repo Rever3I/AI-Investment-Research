@@ -63,4 +63,4 @@ python -m pytest -q
 
 ## 当前进度
 
-已完成：共享记录契约、带外键约束的 SQLite 存储、Fact 契约，以及 `research-intake` 和 `research-thesis` 两层。估值及其下游各层、市场数据适配器（SEC EDGAR、Wind、FRED、新闻舆情）在后续版本中加入。可保存的筛选 profile 设计已定、尚未实现——目前 intake 跑的是通用搜索。
+已完成：共享记录契约、带外键约束的 SQLite 存储、Fact 契约、基于 Decimal 的股东盈余 DCF（含反向 DCF 与多情景），以及 `research-intake`、`research-thesis`、`research-valuation` 三层。分歧层、仓位层、卖出复查层，以及市场数据适配器（SEC EDGAR、Wind、FRED、新闻舆情）在后续版本中加入。可保存的筛选 profile 设计已定、尚未实现——目前 intake 跑的是通用搜索。

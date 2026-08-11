@@ -86,8 +86,9 @@ python -m pytest -q
 ## Status
 
 Built: shared record schemas, SQLite storage with enforced referential
-integrity, the Fact contract, and the `research-intake` and `research-thesis`
-layers. Valuation and everything downstream, plus the market data adapters
-(SEC EDGAR, Wind, FRED, news/alt-data), land in subsequent releases. Saved
-screening profiles are specified but not yet implemented — intake currently runs
-a general search.
+integrity, the Fact contract, a Decimal owner-earnings DCF with reverse-DCF and
+scenario support, and the `research-intake`, `research-thesis` and
+`research-valuation` layers. The dissent, sizing and sellcheck layers, plus the
+market data adapters (SEC EDGAR, Wind, FRED, news/alt-data), land in subsequent
+releases. Saved screening profiles are specified but not yet implemented —
+intake currently runs a general search.
