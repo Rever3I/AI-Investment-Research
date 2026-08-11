@@ -74,11 +74,22 @@ class StooqAdapter(Adapter):
                 f"suffix, e.g. 'nvda.us' or '600519.cn'."
             )
 
+        # Stooq does not report a currency, so only its US market is trusted.
+        # A .de or .jp symbol would come back in euros or yen labelled as
+        # dollars, which is the same bug in a quieter form.
+        if not symbol.endswith(_STOOQ_DEFAULT_SUFFIX):
+            raise AdapterError(
+                f"Stooq does not report a currency, so only US symbols are read "
+                f"from it. {symbol} may not be in dollars; use a source that "
+                f"states the currency."
+            )
+
         as_of = _stooq_timestamp(row)
         return [as_fact(
             name=f"{key.upper()}_price",
             value=close,
             unit="usd",
+            currency="USD",
             freq="intraday",
             as_of=as_of,
             source="stooq",
@@ -115,6 +126,9 @@ class YahooAdapter(Adapter):
         if price is None:
             raise AdapterError(f"Yahoo returned no price for {symbol}")
 
+        currency = (meta.get("currency") or "").upper()
+        _require_usd(symbol, currency)
+
         as_of = (
             datetime.fromtimestamp(stamp, tz=timezone.utc).isoformat()
             if stamp else datetime.now(timezone.utc).isoformat()
@@ -123,12 +137,33 @@ class YahooAdapter(Adapter):
             name=f"{symbol}_price",
             value=price,
             unit="usd",
+            currency=currency or "USD",
             freq="intraday",
             as_of=as_of,
             source="yahoo",
             entity=symbol,
-            note=f"yahoo:{meta.get('currency', '')} regularMarketPrice".strip(),
+            note="yahoo:regularMarketPrice",
         )]
+
+
+def _require_usd(symbol: str, currency: str) -> None:
+    """Refuse a price that is not in dollars.
+
+    The whole pipeline treats `unit="usd"` as meaning dollars. A London listing
+    quotes in pence, so Shell comes back as 3356 and is read as $3,356 against a
+    real price near $45 — and both position sizing and the reverse DCF are
+    ratios against that number. Mislabelling is worse than having no price.
+    """
+    if not currency or currency == "USD":
+        return
+    hint = ""
+    if currency == "GBP" or currency == "GBX" or currency == "GBP=X":
+        hint = " London quotes are in pence, so the figure is also 100x out."
+    raise AdapterError(
+        f"{symbol} is quoted in {currency}, not USD, and this pipeline treats "
+        f"every price as dollars.{hint} Convert it and supply the price "
+        f"directly, or use a source that quotes this listing in dollars."
+    )
 
 
 def _stooq_timestamp(row: dict) -> str:

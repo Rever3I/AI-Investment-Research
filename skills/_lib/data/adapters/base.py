@@ -148,7 +148,7 @@ def describe() -> list:
 
 
 def as_fact(name, value, unit, freq, as_of, source, entity="", group="",
-            note="") -> Fact:
+            currency="", note="") -> Fact:
     """Build a Fact, turning any construction problem into an AdapterError.
 
     Adapters fail as adapters. A FactError escaping from inside one would send
@@ -157,6 +157,7 @@ def as_fact(name, value, unit, freq, as_of, source, entity="", group="",
     """
     try:
         return Fact(name=name, value=value, unit=unit, freq=freq, as_of=as_of,
-                    source=source, entity=entity, group=group, note=note)
+                    source=source, entity=entity, group=group,
+                    currency=currency, note=note)
     except Exception as exc:
         raise AdapterError(f"{source} returned a value that is not a usable Fact: {exc}")

@@ -186,6 +186,24 @@ def test_sec_refuses_to_fetch_without_a_contact():
 # ── SEC: the tag-selection bugs found against live data ───────────
 
 def _facts_payload(tags: dict) -> dict:
+    """A payload with every owner-earnings term present.
+
+    A partial set is refused now, so a test about one concept still has to
+    supply the others or it is testing the refusal instead.
+    """
+    complete = {
+        "NetIncomeLoss": {"units": {"USD": [_annual("2026-06-30", 100)]}},
+        "DepreciationDepletionAndAmortization": {
+            "units": {"USD": [_annual("2026-06-30", 10)]}},
+        "PaymentsToAcquirePropertyPlantAndEquipment": {
+            "units": {"USD": [_annual("2026-06-30", 5)]}},
+    }
+    complete.update(tags)
+    return {"facts": {"us-gaap": complete, "dei": {}}}
+
+
+def _bare_payload(tags: dict) -> dict:
+    """Exactly the tags given, for tests about what happens when terms are absent."""
     return {"facts": {"us-gaap": tags, "dei": {}}}
 
 
@@ -204,14 +222,16 @@ def test_the_freshest_tag_wins_over_the_first_listed(monkeypatch):
     PaymentsToAcquirePropertyPlantAndEquipment in 2020 and moved to
     PaymentsToAcquireProductiveAssets. A first-match rule returned the abandoned
     tag's last value, six years stale, looking entirely normal."""
-    payload = _facts_payload({
-        "NetIncomeLoss": {"units": {"USD": [_annual("2026-01-25", 120)]}},
-        # first in the candidate list, abandoned in 2020
+    payload = _bare_payload({
+        "NetIncomeLoss": {"units": {"USD": [_annual("2026-06-30", 120)]}},
+        "DepreciationDepletionAndAmortization": {
+            "units": {"USD": [_annual("2026-06-30", 10)]}},
+        # first in the candidate list, abandoned in 2020 and beyond the age limit
         "PaymentsToAcquirePropertyPlantAndEquipment": {
             "units": {"USD": [_annual("2020-07-26", 1)]}},
         # second in the list, current
         "PaymentsToAcquireProductiveAssets": {
-            "units": {"USD": [_annual("2026-01-25", 6)]}},
+            "units": {"USD": [_annual("2026-06-30", 6)]}},
     })
     adapter = _stubbed_sec(monkeypatch, payload)
     facts = {f.name: f for f in adapter.fetch("NVDA")}
@@ -244,28 +264,28 @@ def test_year_to_date_entries_are_not_summed_as_quarters(monkeypatch):
 
 def test_four_discrete_quarters_become_a_trailing_twelve_months(monkeypatch):
     quarters = [
-        _quarter("2025-04-28", "2025-07-27", 10),
-        _quarter("2025-07-28", "2025-10-26", 20),
-        _quarter("2025-10-27", "2026-01-25", 30),
-        _quarter("2026-01-26", "2026-04-26", 40),
+        _quarter("2025-09-28", "2025-12-27", 10),
+        _quarter("2025-12-28", "2026-03-26", 20),
+        _quarter("2026-03-27", "2026-06-25", 30),
+        _quarter("2026-06-26", "2026-09-24", 40),
     ]
     payload = _facts_payload({"NetIncomeLoss": {"units": {"USD": quarters}}})
     adapter = _stubbed_sec(monkeypatch, payload)
     fact = adapter.fetch("NVDA")[0]
     assert fact.value == 100
     assert fact.freq == "ttm"
-    assert fact.as_of.startswith("2026-04-26")
+    assert fact.as_of.startswith("2026-09-24")
 
 
 def test_restated_quarters_are_not_double_counted(monkeypatch):
     """The same quarter appears in several filings. Counting each occurrence
     multiplies the answer."""
     quarters = [
-        _quarter("2025-04-28", "2025-07-27", 10),
-        _quarter("2025-04-28", "2025-07-27", 10),   # restatement, same period
-        _quarter("2025-07-28", "2025-10-26", 20),
-        _quarter("2025-10-27", "2026-01-25", 30),
-        _quarter("2026-01-26", "2026-04-26", 40),
+        _quarter("2025-09-28", "2025-12-27", 10),
+        _quarter("2025-09-28", "2025-12-27", 10),   # restatement, same period
+        _quarter("2025-12-28", "2026-03-26", 20),
+        _quarter("2026-03-27", "2026-06-25", 30),
+        _quarter("2026-06-26", "2026-09-24", 40),
     ]
     payload = _facts_payload({"NetIncomeLoss": {"units": {"USD": quarters}}})
     fact = _stubbed_sec(monkeypatch, payload).fetch("NVDA")[0]
@@ -277,21 +297,24 @@ def test_quarters_with_a_gap_are_not_called_a_year(monkeypatch):
     as one understates every ratio built on top."""
     quarters = [
         _quarter("2023-04-28", "2023-07-27", 10),
-        _quarter("2025-07-28", "2025-10-26", 20),
-        _quarter("2025-10-27", "2026-01-25", 30),
-        _quarter("2026-01-26", "2026-04-26", 40),
+        _quarter("2025-12-28", "2026-03-26", 20),
+        _quarter("2026-03-27", "2026-06-25", 30),
+        _quarter("2026-06-26", "2026-09-24", 40),
     ]
-    payload = _facts_payload({"NetIncomeLoss": {"units": {"USD": quarters}}})
-    fact = _stubbed_sec(monkeypatch, payload).fetch("NVDA")[0]
-    assert fact.freq != "ttm"
+    payload = _bare_payload({"NetIncomeLoss": {"units": {"USD": quarters}}})
+    # With no annual figure and no valid run of four, there is nothing usable —
+    # which is the right answer, not a number assembled from a gapped set.
+    with pytest.raises(AdapterError) as excinfo:
+        _stubbed_sec(monkeypatch, payload).fetch("NVDA")
+    assert "net_income" in str(excinfo.value)
 
 
 def test_a_point_in_time_value_is_not_annualised(monkeypatch):
     """Shares outstanding is a level, not a flow: nothing to sum."""
     payload = _facts_payload({
-        "NetIncomeLoss": {"units": {"USD": [_annual("2026-01-25", 120)]}},
+        "NetIncomeLoss": {"units": {"USD": [_annual("2026-06-30", 120)]}},
         "CommonStockSharesOutstanding": {
-            "units": {"shares": [{"end": "2026-01-25", "val": 24_304_000_000,
+            "units": {"shares": [{"end": "2026-06-30", "val": 24_304_000_000,
                                   "form": "10-K"}]}},
     })
     facts = {f.name: f for f in _stubbed_sec(monkeypatch, payload).fetch("NVDA")}
@@ -305,19 +328,23 @@ def test_owner_earnings_inputs_share_a_group(monkeypatch):
     quarterly figure divided by a trailing-twelve-month one is the classic way a
     valuation comes out four times wrong."""
     payload = _facts_payload({
-        "NetIncomeLoss": {"units": {"USD": [_annual("2026-01-25", 120)]}},
+        "NetIncomeLoss": {"units": {"USD": [_annual("2026-06-30", 120)]}},
         "DepreciationDepletionAndAmortization": {
-            "units": {"USD": [_annual("2026-01-25", 3)]}},
+            "units": {"USD": [_annual("2026-06-30", 3)]}},
     })
     for fact in _stubbed_sec(monkeypatch, payload).fetch("NVDA"):
         assert fact.group == "owner_earnings"
 
 
 def test_a_company_with_no_known_tags_says_what_to_do(monkeypatch):
-    payload = _facts_payload({"SomethingElse": {"units": {"USD": [_annual("2026-01-25", 1)]}}})
+    payload = _bare_payload({"SomethingElse": {"units": {"USD": [_annual("2026-06-30", 1)]}}})
     with pytest.raises(AdapterError) as excinfo:
         _stubbed_sec(monkeypatch, payload).fetch("NVDA")
-    assert "CONCEPTS" in str(excinfo.value)
+    # Every owner-earnings term is missing, so that is what it reports rather
+    # than the vaguer "no tags this adapter knows".
+    message = str(excinfo.value)
+    assert "net_income" in message
+    assert "capital_expenditure" in message
 
 
 def test_an_unknown_ticker_is_explained(monkeypatch):
