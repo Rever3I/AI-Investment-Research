@@ -1,22 +1,18 @@
-# Stage 4 — Position sizing
+# 阶段 4 —— 定仓位
 
+把阶段 3 的情景概率转换成占总资金的一个比例。算术在
+`airesearch/valuation/sizing.py` 里，不归你复现。
 
-Converts the scenario probabilities from `research-valuation` into a fraction of
-capital. The arithmetic is in `skills/investment-research/airesearch/valuation/sizing.py` and is not yours
-to reproduce.
+## 先把话说在前面
 
-## The honest caveat, stated up front
+Kelly 是把精确的算术用在不精确的输入上。它最大化的是长期增长率——**给定那些概率**，
+而那些概率是几层之前一个人的判断。用没人认真想过的数字算出来的 Kelly 比例，是一个
+看起来很量化、实际不是的仓位。
 
-Kelly is exact arithmetic applied to inexact inputs. It maximises long-run
-growth **given the probabilities**, and those probabilities were a human's
-judgment several layers ago. A Kelly fraction computed from numbers nobody
-thought hard about is a position size that looks quantitative and is not.
+所以在定仓位之前，先看一眼那些概率，问它们是推出来的还是随手凑的。如果是随手凑的，
+就把这件事说出来——这比在它们之上算到小数点后两位的权重有用得多。
 
-So before sizing, look at the probabilities and ask whether they were reasoned
-or reached for. If they were reached for, say so — that is more useful than a
-weight computed to two decimal places on top of them.
-
-## Sizing
+## 计算
 
 ```python
 from airesearch.config import load_profile
@@ -35,12 +31,10 @@ result = size_position(
 )
 ```
 
-`get_valuation` raises `FileNotFoundError` on a fresh install; catch it and say
-to run `research-valuation` first.
+全新安装时 `get_valuation` 会抛 `FileNotFoundError`；接住它，说先跑一次阶段 3。
 
-The market price passes the Fact contract before it gets here — the whole
-calculation is a ratio against it, so a stale price silently scales the answer.
-The price adapter needs no configuration:
+市场价格在到这里之前要先过 Fact 契约——整个计算就是一个对它的比值，所以一个陈旧的
+价格会悄悄把答案整体缩放。行情适配器不需要任何配置：
 
 ```python
 from airesearch.data.adapters import configure, fetch
@@ -52,48 +46,40 @@ verify([quote])                 # intraday facts go stale in an hour
 current_price = quote.value
 ```
 
-Four methods, all in the profile:
+四种方法，都在 profile 里：
 
-- `half_kelly` (default) — the usual hedge against the probabilities being
-  wrong. Full Kelly is growth-optimal only if they are exactly right, and its
-  drawdowns are severe when they are not.
-- `full_kelly` — available, and the result says what it costs.
-- `fixed_pct` — ignores the edge and uses the profile's `fixed_pct` weight.
-- `custom` — the user sized it themselves; pass their number as `weight=`.
+- `half_kelly`（默认）—— 对「概率可能是错的」这件事的常规对冲。全 Kelly 只有在概率
+  完全正确时才是增长最优的，而一旦不正确，它的回撤很凶。
+- `full_kelly` —— 可以选，结果里会说明代价。
+- `fixed_pct` —— 不看边际，直接用 profile 里的 `fixed_pct` 权重。
+- `custom` —— 用户自己定了仓位，把他的数字作为 `weight=` 传进去。
 
-The last two still report what Kelly would have said, for comparison.
+后两种仍然会报出 Kelly 本来会给的答案，供对照。
 
-Every fraction here is a fraction, not a percentage: `0.05` is five percent of
-capital. Passing `5` meaning five percent is refused rather than silently
-sized a hundredfold too large.
+这里每一个比例都是分数，不是百分数：`0.05` 就是总资金的百分之五。传 `5` 想表示百分之
+五会被拒绝，而不是悄悄把仓位放大一百倍。
 
-## The answers that surprise people
+## 会让人意外的几个答案
 
-**Zero is a real answer.** When expected return is not positive at the current
-price, Kelly sizes the position at nothing. That is the arithmetic declining the
-bet, not a missing number, and reporting it as "no recommendation" misrepresents
-it. Say the edge is not there at this price.
+**零是一个真答案。** 当期望收益在当前价格下不为正，Kelly 给出的仓位就是零。那是算术
+在拒绝下注，不是缺一个数字，把它报成「暂无建议」是曲解。直接说这个价格上没有边际。
 
-**A capped position is not the same as an uncapped one.** If a concentration
-limit bound the answer, `result.capped` is true and the note says so. Pass that
-on — the difference between "Kelly wants 30% and your limit says 5%" and "Kelly
-wants 5%" matters to whoever is deciding.
+**被上限截断的仓位和没被截断的不是一回事。** 如果集中度上限约束了答案，`result.capped`
+为真，说明里也会写。把这件事传出去——「Kelly 想要 30%，你的上限说 5%」和「Kelly 就
+想要 5%」，对做决定的人来说完全不同。
 
-**An optimum above 100% is reported as 100%, not as leverage.** The module does
-not size a levered position; if the edge is that large, the constraint is
-something other than arithmetic. When that happens `result.clipped` is true and
-the note says so — pass it on, because otherwise `full_kelly` reads as an
-optimum when it is a ceiling, and half of a ceiling is not half Kelly.
+**最优解超过 100% 时报的是 100%，不是杠杆。** 这个模块不计算带杠杆的仓位；如果边际
+真有那么大，约束就不在算术这一侧了。发生这种情况时 `result.clipped` 为真，说明里会
+写——一定要传出去，否则 `full_kelly` 读起来像是最优解，而它其实是天花板，而天花板的
+一半不是半 Kelly。
 
-**A price target far above the price is refused as a unit error.** The usual
-cause is a total equity value where a per-share figure belongs, which would
-otherwise size the position at the maximum on a fictional 200x return.
+**远高于当前价格的目标价会被当作单位错误拒绝。** 常见原因是把整体股权价值填在了每股
+数字的位置上，否则它会按一个虚构的 200 倍回报把仓位顶到最大。
 
-**A scenario implying total loss is refused.** Kelly is undefined against an
-outcome that wipes the position out, and that case needs a decision about
-whether to hold the security at all, not a weight.
+**隐含全损的情景会被拒绝。** 对一个会把仓位打光的结果，Kelly 是没有定义的，而那种
+情况需要的是「还要不要持有这个标的」的决定，不是一个权重。
 
-## Saving
+## 保存
 
 ```python
 from airesearch.data.schema import Portfolio
@@ -120,23 +106,20 @@ portfolio = Portfolio(
 row_id = save_portfolio(portfolio)
 ```
 
-Store the inputs, not just the answer. A weight with no visible probabilities
-behind it cannot be argued with later, including by the person who produced it.
+把输入也存下来，不要只存答案。一个背后看不见概率的权重，日后没法被质疑——包括被
+产出它的那个人质疑。
 
-Note `recommended_position_pct` is a percentage (4.25 means 4.25% of capital),
-while `result.fraction` is the fraction. `result.percent` does the conversion.
+注意 `recommended_position_pct` 是百分数（4.25 表示总资金的 4.25%），而
+`result.fraction` 是分数。`result.percent` 负责这个转换。
 
-## Output language
+## 输出语言
 
-Follow `output_language()` for your commentary. Do not translate `sizing_method`
-— the record validates it against `half_kelly`, `full_kelly`, `fixed_pct`,
-`custom` — or the scenario names inside `kelly_inputs`.
+说明文字跟随 `output_language()`。不要翻译 `sizing_method`——记录会拿它和 `half_kelly`、
+`full_kelly`、`fixed_pct`、`custom` 做校验——也不要翻译 `kelly_inputs` 里的情景名称。
 
-## Finishing
+## 收尾
 
-Report the weight, the method, the expected return it came from, and whether a
-cap bound it. Show the probabilities the answer rests on, because that is what
-the user should push on if they disagree.
+报出权重、用的方法、它来自的期望收益，以及是否被上限约束过。把答案所依赖的那些概率
+一并列出来，因为如果用户不同意，他该推的正是这些。
 
-Do not tell the user to place a trade. This is a weight derived from stated
-assumptions; whether to act on it is theirs.
+不要告诉用户去下单。这是从既定假设推出来的一个权重；要不要照做是他的事。
