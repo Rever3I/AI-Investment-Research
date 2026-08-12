@@ -23,6 +23,11 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 
 # ── Value domains ─────────────────────────────────────────────────
+# `usd` is the tag for a money amount, not a claim that the money is dollars:
+# the `currency` field carries that, and check_currency_align refuses an entity
+# whose money arrives in two of them. A yuan figure is therefore unit="usd"
+# with currency="CNY", which reads oddly and is the price of not renaming a
+# unit that is written into every stored row.
 UNITS = ("pct", "usd", "shares", "ratio", "x", "count", "bps")
 FREQS = ("intraday", "daily", "weekly", "monthly", "quarterly", "ttm", "annual", "point")
 

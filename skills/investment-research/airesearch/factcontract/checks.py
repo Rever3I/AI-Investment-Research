@@ -1,13 +1,16 @@
 #!/usr/bin/env python
-"""The three checkers plus verify(), the adjudication entry point.
+"""The four checkers plus verify(), the adjudication entry point.
 
 Severity is deliberately uneven:
-    staleness   -> hard stop (raises FactCheckError)
-    freq_align  -> warning
-    magnitude   -> warning
+    staleness       -> hard stop (raises FactCheckError)
+    currency_align  -> hard stop
+    freq_align      -> warning
+    magnitude       -> warning
 
 Warnings get ignored; hard stops do not. Stale data is the failure mode that
 actually burns you, so it is the one that has to be able to halt the pipeline.
+Mixed currencies are the other: the result is wrong by an exchange rate and
+looks entirely ordinary, so nothing downstream would ever question it.
 
 Usage:
     from airesearch.factcontract import Fact, verify
@@ -105,7 +108,54 @@ def _human(seconds: float) -> str:
 
 
 # ══════════════════════════════════════════════════════════════════
-#  check 2: freq_align -- warning
+#  check 2: currency_align -- hard stop
+# ══════════════════════════════════════════════════════════════════
+
+def check_currency_align(facts):
+    """Money Facts about one entity must all be in the same currency.
+
+    Nothing in this pipeline converts between currencies. A price in yuan
+    divided into owner earnings in dollars produces a valuation out by the
+    exchange rate, and every digit of it looks plausible.
+
+    This is what lets a non-dollar listing be valued at all. The alternative --
+    refusing anything that is not USD -- shuts out the markets the adapters
+    exist to reach, and still would not catch a US filing paired with a foreign
+    quote if the quote were mislabelled.
+
+    Keyed on entity rather than group: the price and the financials it will be
+    divided into rarely share a group, and that is exactly the pairing that
+    matters. Facts with no currency stated are skipped, because an unset field
+    is an unknown rather than a disagreement.
+    """
+    by_entity = defaultdict(lambda: defaultdict(list))
+    for f in facts:
+        if f.unit == "usd" and f.entity and f.currency:
+            by_entity[f.entity][f.currency.upper()].append(f)
+
+    issues = []
+    for entity, counts in by_entity.items():
+        if len(counts) <= 1:
+            continue
+        # The minority currency is the more likely mistake, same reasoning as
+        # freq_align: one stray Fact among several agreeing ones.
+        majority = max(counts, key=lambda k: len(counts[k]))
+        for ccy, offenders in counts.items():
+            if ccy == majority:
+                continue
+            for f in offenders:
+                issues.append(_issue(
+                    "error", "currency_align", f,
+                    f"{entity} has money in {ccy} and in {majority}; nothing "
+                    f"here converts between them, so any ratio spanning the two "
+                    f"is wrong by an exchange rate",
+                    currencies=sorted(counts),
+                ))
+    return issues
+
+
+# ══════════════════════════════════════════════════════════════════
+#  check 3: freq_align -- warning
 # ══════════════════════════════════════════════════════════════════
 
 def check_freq_align(facts):
@@ -145,7 +195,7 @@ def check_freq_align(facts):
 
 
 # ══════════════════════════════════════════════════════════════════
-#  check 3: magnitude -- warning
+#  check 4: magnitude -- warning
 # ══════════════════════════════════════════════════════════════════
 
 def check_magnitude(facts, history_fn=None):
@@ -230,6 +280,7 @@ def verify(facts, raise_on_error=True, record=True, ref=None):
 
     issues = []
     issues += check_staleness(facts, ref=ref)
+    issues += check_currency_align(facts)
     issues += check_freq_align(facts)
     issues += check_magnitude(facts, history_fn=history_fn)
 

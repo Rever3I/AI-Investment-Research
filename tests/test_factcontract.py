@@ -72,6 +72,60 @@ def test_point_freq_never_goes_stale():
     assert report["ok"] is True
 
 
+# ── currency_align is the other hard stop ─────────────────────────
+
+def test_one_entity_in_two_currencies_hard_stops():
+    """Nothing converts between them, so a yuan price divided into dollar
+    owner earnings is a valuation wrong by the exchange rate — and every digit
+    of it looks ordinary."""
+    price = _fresh(name="600519_price", value=1687.0, unit="usd",
+                   currency="CNY", entity="600519.SS", freq="intraday")
+    earnings = _fresh(name="600519_net_income", value=8.6e10, unit="usd",
+                      currency="USD", entity="600519.SS", freq="ttm",
+                      as_of=now_utc().isoformat())
+    with pytest.raises(FactCheckError) as excinfo:
+        verify([price, earnings], record=False)
+    assert "currency_align" in str(excinfo.value)
+
+
+def test_one_entity_consistently_in_yuan_passes():
+    """The point of the check is mixing, not foreignness. Refusing every
+    non-dollar figure would shut out the markets the adapters exist to reach."""
+    price = _fresh(name="600519_price", value=1687.0, unit="usd",
+                   currency="CNY", entity="600519.SS", freq="intraday")
+    earnings = _fresh(name="600519_net_income", value=8.6e10, unit="usd",
+                      currency="CNY", entity="600519.SS", freq="ttm")
+    assert verify([price, earnings], record=False)["ok"] is True
+
+
+def test_two_entities_in_different_currencies_are_not_a_conflict():
+    """A yuan name and a dollar name in one report are not being divided into
+    each other. Keying on entity is what keeps that from being a false stop."""
+    a = _fresh(name="A_price", value=100.0, unit="usd", currency="CNY",
+               entity="600519.SS", freq="intraday")
+    b = _fresh(name="B_price", value=100.0, unit="usd", currency="USD",
+               entity="KO", freq="intraday")
+    assert verify([a, b], record=False)["ok"] is True
+
+
+def test_an_unset_currency_is_an_unknown_not_a_disagreement():
+    """Most Facts predate the field. Treating blank as a conflict would stop
+    every existing pipeline rather than the one case that is wrong."""
+    stated = _fresh(name="KO_price", value=86.84, unit="usd", currency="USD",
+                    entity="KO", freq="intraday")
+    blank = _fresh(name="KO_net_income", value=1.2e10, unit="usd",
+                   entity="KO", freq="ttm")
+    assert verify([stated, blank], record=False)["ok"] is True
+
+
+def test_a_share_count_is_not_dragged_into_the_currency_check():
+    shares = _fresh(name="KO_shares", value=4.31e9, unit="shares",
+                    currency="USD", entity="KO", freq="point")
+    price = _fresh(name="KO_price", value=1687.0, unit="usd", currency="CNY",
+                   entity="KO", freq="intraday")
+    assert verify([shares, price], record=False)["ok"] is True
+
+
 # ── freq_align and magnitude are warnings, not stops ──────────────
 
 def test_mixed_frequency_within_a_group_warns_but_passes():

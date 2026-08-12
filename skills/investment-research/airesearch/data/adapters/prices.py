@@ -127,7 +127,7 @@ class YahooAdapter(Adapter):
             raise AdapterError(f"Yahoo returned no price for {symbol}")
 
         currency = (meta.get("currency") or "").upper()
-        _require_usd(symbol, currency)
+        _check_quote_currency(symbol, currency)
 
         as_of = (
             datetime.fromtimestamp(stamp, tz=timezone.utc).isoformat()
@@ -137,7 +137,7 @@ class YahooAdapter(Adapter):
             name=f"{symbol}_price",
             value=price,
             unit="usd",
-            currency=currency or "USD",
+            currency=currency,
             freq="intraday",
             as_of=as_of,
             source="yahoo",
@@ -146,24 +146,39 @@ class YahooAdapter(Adapter):
         )]
 
 
-def _require_usd(symbol: str, currency: str) -> None:
-    """Refuse a price that is not in dollars.
+# Quote units that are a fraction of their own currency. Yahoo reports London
+# in GBp, and the number is 100x the price in pounds, so it is wrong while
+# still carrying a currency label that agrees with the filings.
+_SUBDIVIDED = {"GBP", "GBX", "GBP=X", "ZAC", "ILA"}
 
-    The whole pipeline treats `unit="usd"` as meaning dollars. A London listing
-    quotes in pence, so Shell comes back as 3356 and is read as $3,356 against a
-    real price near $45 — and both position sizing and the reverse DCF are
-    ratios against that number. Mislabelling is worse than having no price.
+
+def _check_quote_currency(symbol: str, currency: str) -> None:
+    """Refuse a price whose currency is unknown or quoted in subunits.
+
+    A non-dollar price is fine. A Shanghai listing valued in yuan against yuan
+    financials is a correct valuation, and refusing it would shut out every
+    market this pipeline claims to reach. What the currency check protects
+    against is mixing, and that is caught downstream: the Fact contract hard-
+    stops when one entity carries money in two currencies, because nothing here
+    converts between them.
+
+    Two cases still have to be refused here, because no later check can see
+    them. A quote with no currency stated cannot be aligned against anything.
+    And a quote in a subunit is wrong inside its own label: London quotes in
+    pence, so Shell comes back as 3356 against a real price near GBP 45, and
+    both position sizing and the reverse DCF are ratios against that number.
     """
-    if not currency or currency == "USD":
-        return
-    hint = ""
-    if currency == "GBP" or currency == "GBX" or currency == "GBP=X":
-        hint = " London quotes are in pence, so the figure is also 100x out."
-    raise AdapterError(
-        f"{symbol} is quoted in {currency}, not USD, and this pipeline treats "
-        f"every price as dollars.{hint} Convert it and supply the price "
-        f"directly, or use a source that quotes this listing in dollars."
-    )
+    if not currency:
+        raise AdapterError(
+            f"{symbol} came back with no currency stated, so there is no way to "
+            f"tell what the figure means. Use a source that states one."
+        )
+    if currency in _SUBDIVIDED:
+        raise AdapterError(
+            f"{symbol} is quoted in {currency}, a subunit rather than the "
+            f"currency itself, so the figure is 100x the real price. Use a "
+            f"listing quoted in the main unit, or supply the price directly."
+        )
 
 
 def _stooq_timestamp(row: dict) -> str:

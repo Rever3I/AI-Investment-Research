@@ -29,7 +29,9 @@ a host gives a working install.
 
 - **Numbers come from tools, not from the model.** Any figure that reaches an
   output passes through the Fact contract in `airesearch/factcontract/`, which
-  hard-stops on stale data and warns on unit or magnitude anomalies.
+  hard-stops on stale data and on one company's money arriving in two
+  currencies, and warns on unit or magnitude anomalies. A non-dollar listing is
+  not refused: a yuan price against yuan financials values fine.
 - **No opinionated defaults.** There is no built-in screening checklist and no
   mandatory committee. You configure the criteria you want and save them; until
   you do, intake is a general open search.

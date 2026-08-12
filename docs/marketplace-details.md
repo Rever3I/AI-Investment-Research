@@ -86,8 +86,13 @@ number that means nothing.
 - **Loss-making companies.** An owner-earnings DCF on negative owner earnings
   returns a negative price target with an ordinary-looking terminal share hiding
   two negatives in a ratio.
-- **Non-dollar quotes.** A London or Tokyo listing is refused rather than
-  labelled as dollars.
+- **One company in two currencies.** A yuan price against dollar financials is
+  a valuation wrong by the exchange rate, and every digit of it looks ordinary.
+  That combination hard-stops. A non-dollar listing on its own does not: yuan
+  price against yuan financials is a correct valuation, and so is Hong Kong.
+- **Listings quoted in a subunit.** London quotes in pence, so Shell comes back
+  as 3356 against a real price near GBP 45. The currency label is right and only
+  the unit is wrong, which is why no downstream check can see it.
 - **Foreign private issuers.** They file under IFRS, which this does not read,
   and it says so instead of implying the ticker is wrong.
 - **A position with no edge.** When expected return is not positive at the

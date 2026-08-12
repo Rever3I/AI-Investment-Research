@@ -125,6 +125,11 @@ class WindAdapter(Adapter):
                 name=f"{key}_{concept}",
                 value=value,
                 unit=unit,
+                # `unit="usd"` is the pipeline's tag for a money amount; the
+                # currency field is what says which money. Leaving it unset
+                # here meant yuan financials looked like dollars to everything
+                # downstream, including the check that exists to catch that.
+                currency=self.currency if unit == "usd" else "",
                 freq="ttm",
                 as_of=as_of,
                 source=SOURCE,

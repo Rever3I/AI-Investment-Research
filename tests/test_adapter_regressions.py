@@ -219,20 +219,46 @@ def test_a_fifty_three_week_year_is_still_a_year(monkeypatch):
 
 # ── prices must not lie about their currency ──────────────────────
 
-@pytest.mark.parametrize("currency", ["GBP", "JPY", "EUR"])
-def test_a_price_not_in_dollars_is_refused(monkeypatch, currency):
-    """A London listing quotes in pence, so Shell comes back as 3356 and reads
-    as $3,356 against a real price near $45. Both position sizing and the
-    reverse DCF are ratios against this number."""
+def _quote(monkeypatch, currency, price=3356.0):
     from airesearch.data.adapters import prices
 
     monkeypatch.setattr(prices, "get_json", lambda *a, **k: {
-        "chart": {"result": [{"meta": {"regularMarketPrice": 3356.0,
+        "chart": {"result": [{"meta": {"regularMarketPrice": price,
                                        "regularMarketTime": 1786000000,
                                        "currency": currency}}]}})
+
+
+@pytest.mark.parametrize("currency", ["GBP", "GBX", "ZAC", "ILA"])
+def test_a_price_quoted_in_a_subunit_is_refused(monkeypatch, currency):
+    """A London listing quotes in pence, so Shell comes back as 3356 against a
+    real price near GBP 45 — wrong by 100x while still labelled GBP, which no
+    cross-currency check can see. Both position sizing and the reverse DCF are
+    ratios against this number."""
+    _quote(monkeypatch, currency)
     with pytest.raises(AdapterError) as excinfo:
         YahooAdapter().fetch("SHEL.L")
     assert currency in str(excinfo.value)
+
+
+def test_a_price_with_no_currency_is_refused(monkeypatch):
+    """Unstated is not the same as dollars, and it cannot be aligned against
+    anything downstream."""
+    _quote(monkeypatch, None)
+    with pytest.raises(AdapterError) as excinfo:
+        YahooAdapter().fetch("SHEL.L")
+    assert "currency" in str(excinfo.value)
+
+
+@pytest.mark.parametrize("currency", ["CNY", "JPY", "EUR", "HKD"])
+def test_a_non_dollar_price_is_kept_with_its_currency(monkeypatch, currency):
+    """Refusing every non-dollar quote shut out the markets the cn_equity and
+    macro adapters exist to reach. A Shanghai listing valued in yuan against
+    yuan financials is a correct valuation; mixing is the thing to catch, and
+    check_currency_align catches it."""
+    _quote(monkeypatch, currency, price=1687.0)
+    fact = YahooAdapter().fetch("600519.SS")[0]
+    assert fact.currency == currency
+    assert fact.value == 1687.0
 
 
 def test_a_dollar_price_records_its_currency(monkeypatch):

@@ -529,6 +529,30 @@ def test_wind_builds_facts_from_a_response_shape():
     assert facts["600519.SH_shares_outstanding"].unit == "shares"
 
 
+def test_wind_money_says_which_currency_it_is_in():
+    """`unit="usd"` is the money tag, so yuan financials with an unset currency
+    field were indistinguishable from dollars to check_currency_align — the one
+    check that exists to catch a yuan price divided into dollar earnings."""
+    from airesearch.data.adapters.cn_wind import WindAdapter
+
+    class _Client:
+        def isconnected(self):
+            return True
+
+        def wss(self, codes, fields, options):
+            class _Response:
+                ErrorCode = 0
+                Fields = ["NP_BELONGTO_PARCOMSH", "TOTAL_SHARES"]
+                Data = [[1_000_000.0], [5_000_000.0]]
+                Times = []
+            return _Response()
+
+    facts = {f.name: f for f in WindAdapter(client=_Client()).fetch("600519.SH")}
+    assert facts["600519.SH_net_income"].currency == "CNY"
+    # A share count is not money and must not be labelled with a currency.
+    assert facts["600519.SH_shares_outstanding"].currency == ""
+
+
 def test_wind_surfaces_its_error_codes():
     from airesearch.data.adapters.cn_wind import WindAdapter
 
