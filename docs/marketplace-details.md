@@ -130,7 +130,7 @@ exactly which setting is missing.
 | Quotes | Yahoo (two hosts), then Stooq | nothing |
 | US financials | SEC EDGAR XBRL company facts | `sec_contact` |
 | Macro | FRED | a free key |
-| Chinese listings | Wind | a licensed terminal |
+| Chinese listings | Eastmoney public endpoints, then Wind | nothing |
 
 Each domain is a chain. When the first source fails the next is tried and the
 fallback is recorded, because a primary that quietly always fails looks
@@ -170,9 +170,11 @@ Prices are the last regular-session print. Anything past its staleness limit
 hard-stops rather than being used.
 
 **Can I use it for Chinese A-shares?**
-The Wind adapter is written to Wind's documented interface but has not been
-verified against a live terminal, because WindPy ships with the paid product and
-cannot be installed otherwise. Treat it as a starting point.
+Yes, with nothing configured. Chinese financials come from Eastmoney's public
+endpoints and the quote from Yahoo, neither of which needs a key or a licence.
+Kweichow Moutai FY2025 runs to CNY 83.3bn of owner earnings, CNY 66.6 a share.
+Wind remains available behind it for anyone with a terminal, still unverified
+against a live one. Banks and insurers are refused with the reason.
 
 **What if I disagree with the valuation?**
 You should be able to. The growth rates and probabilities are yours, the
@@ -188,5 +190,7 @@ For fetching data, yes. The valuation pages it writes work offline afterwards.
 - Owner-earnings DCF suits profitable businesses with identifiable capital
   expenditure. It is a poor fit for banks, insurers, early-stage companies and
   many REITs, and it says so rather than producing a number.
-- The Wind adapter is unverified against a live terminal.
+- The Wind adapter is unverified against a live terminal. A-shares default to
+  Eastmoney's public endpoints instead, which are unofficial and undocumented,
+  the same class of dependency as the Yahoo quote endpoint.
 - Nothing here is investment advice.

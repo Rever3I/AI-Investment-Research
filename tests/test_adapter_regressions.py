@@ -221,6 +221,55 @@ def test_a_fifty_three_week_year_is_still_a_year(monkeypatch):
 
 # ── prices must not lie about their currency ──────────────────────
 
+# ── a close is not stale data ─────────────────────────────────────
+
+def test_a_fresh_quote_is_intraday(monkeypatch):
+    from datetime import datetime, timezone
+
+    _quote(monkeypatch, "USD", price=219.15)
+    from airesearch.data.adapters import prices
+    now = datetime.now(timezone.utc).timestamp()
+    monkeypatch.setattr(prices, "get_json", lambda *a, **k: {
+        "chart": {"result": [{"meta": {"regularMarketPrice": 219.15,
+                                       "regularMarketTime": now,
+                                       "currency": "USD"}}]}})
+    assert YahooAdapter().fetch("NVDA")[0].freq == "intraday"
+
+
+def test_a_quote_from_hours_ago_is_a_daily_close(monkeypatch):
+    """Calling every quote `intraday` put the Fact contract's one-hour limit on
+    a session close, so any research done outside market hours hard-stopped on
+    the price before it could value anything. An A-share seen from another
+    timezone is that case permanently."""
+    from datetime import datetime, timedelta, timezone
+
+    from airesearch.data.adapters import prices
+    hours_ago = (datetime.now(timezone.utc) - timedelta(hours=9)).timestamp()
+    monkeypatch.setattr(prices, "get_json", lambda *a, **k: {
+        "chart": {"result": [{"meta": {"regularMarketPrice": 1343.0,
+                                       "regularMarketTime": hours_ago,
+                                       "currency": "CNY"}}]}})
+    fact = YahooAdapter().fetch("600519.SS")[0]
+    assert fact.freq == "daily"
+    assert "session close" in fact.note
+
+
+def test_a_session_close_passes_the_fact_contract(monkeypatch):
+    """The behaviour that matters: the close reaches a valuation instead of
+    stopping the run."""
+    from datetime import datetime, timedelta, timezone
+
+    from airesearch.data.adapters import prices
+    from airesearch.factcontract import verify
+
+    hours_ago = (datetime.now(timezone.utc) - timedelta(hours=9)).timestamp()
+    monkeypatch.setattr(prices, "get_json", lambda *a, **k: {
+        "chart": {"result": [{"meta": {"regularMarketPrice": 1343.0,
+                                       "regularMarketTime": hours_ago,
+                                       "currency": "CNY"}}]}})
+    assert verify(YahooAdapter().fetch("600519.SS"), record=False)["ok"] is True
+
+
 # ── setup messages must point at the file that is actually read ───
 
 @pytest.mark.parametrize("build", [

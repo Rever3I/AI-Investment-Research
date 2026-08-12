@@ -16,10 +16,12 @@ from the network this was built on. It may work from yours; it is kept in the
 chain rather than deleted so that it can, and placed last so that a dead primary
 never becomes the normal case.
 
-Both return a Fact at `intraday` frequency, so the Fact contract's one-hour
-staleness limit applies. A price is the one number where being an hour late
-matters, and it is also the number a valuation is most often quietly built on
-top of hours after it was fetched.
+A quote comes back as `intraday` while it is a live print and as `daily` once
+it is that session's close — see `_classify`. Labelling every quote `intraday`
+put a one-hour staleness limit on the close too, which made the pipeline
+unusable outside market hours: an evening research session, or any A-share seen
+from another timezone, hard-stopped on the price before it could value
+anything.
 """
 
 import csv
@@ -28,7 +30,7 @@ import logging
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from .base import Adapter, AdapterError, as_fact
 from .http import DEFAULT_TIMEOUT, get_json
@@ -85,16 +87,17 @@ class StooqAdapter(Adapter):
             )
 
         as_of = _stooq_timestamp(row)
+        freq, state = _classify(as_of)
         return [as_fact(
             name=f"{key.upper()}_price",
             value=close,
             unit="usd",
             currency="USD",
-            freq="intraday",
-            as_of=as_of,
+            freq=freq,
+            as_of=as_of.isoformat(),
             source="stooq",
             entity=key.upper(),
-            note=f"stooq:{symbol} close",
+            note=f"stooq:{symbol} close, {state}",
         )]
 
 
@@ -130,19 +133,20 @@ class YahooAdapter(Adapter):
         _check_quote_currency(symbol, currency)
 
         as_of = (
-            datetime.fromtimestamp(stamp, tz=timezone.utc).isoformat()
-            if stamp else datetime.now(timezone.utc).isoformat()
+            datetime.fromtimestamp(stamp, tz=timezone.utc)
+            if stamp else datetime.now(timezone.utc)
         )
+        freq, note = _classify(as_of)
         return [as_fact(
             name=f"{symbol}_price",
             value=price,
             unit="usd",
             currency=currency,
-            freq="intraday",
-            as_of=as_of,
+            freq=freq,
+            as_of=as_of.isoformat(),
             source="yahoo",
             entity=symbol,
-            note="yahoo:regularMarketPrice",
+            note=f"yahoo:regularMarketPrice, {note}",
         )]
 
 
@@ -150,6 +154,34 @@ class YahooAdapter(Adapter):
 # in GBp, and the number is 100x the price in pounds, so it is wrong while
 # still carrying a currency label that agrees with the filings.
 _SUBDIVIDED = {"GBP", "GBX", "GBP=X", "ZAC", "ILA"}
+
+# Beyond this, a quote is no longer a live print; it is that session's close.
+_LIVE_WINDOW = timedelta(hours=1)
+
+
+def _classify(as_of: datetime):
+    """Whether this quote is a live print or a settled close.
+
+    Both come back from the same field, and calling everything `intraday` made
+    the pipeline unusable outside market hours: the Fact contract allows an
+    intraday figure one hour, so any research done in the evening — or on an
+    A-share from another timezone, which is the normal case — hard-stopped on
+    the price before it could value anything.
+
+    A close is not stale data. It is the last print there is, and it stays that
+    way until the next session, which is what the `daily` limit already exists
+    to allow ("Friday's close is still the latest print on Tuesday morning").
+
+    The one thing this cannot distinguish is a genuinely closed market from a
+    feed stuck hours behind during an open one. Yahoo's chart endpoint reports
+    no market state, so nothing here can. The exposure is a price a few hours
+    out inside a ten-year discounted cash flow, which is a rounding error
+    against the growth assumption it sits next to.
+    """
+    age = datetime.now(timezone.utc) - as_of
+    if age <= _LIVE_WINDOW:
+        return "intraday", "live print"
+    return "daily", "session close"
 
 
 def _check_quote_currency(symbol: str, currency: str) -> None:
@@ -181,11 +213,15 @@ def _check_quote_currency(symbol: str, currency: str) -> None:
         )
 
 
-def _stooq_timestamp(row: dict) -> str:
-    """Stooq gives a date and a time in separate columns, in UTC."""
+def _stooq_timestamp(row: dict) -> datetime:
+    """Stooq gives a date and a time in separate columns, in UTC.
+
+    Returns a datetime rather than a string because `_classify` has to compare
+    it against now to tell a live print from a close.
+    """
     date, clock = row.get("Date"), row.get("Time")
     if not date or date == "N/D":
-        return datetime.now(timezone.utc).isoformat()
+        return datetime.now(timezone.utc)
     try:
         stamp = datetime.strptime(f"{date} {clock or '00:00:00'}",
                                   "%Y-%m-%d %H:%M:%S")
@@ -193,5 +229,5 @@ def _stooq_timestamp(row: dict) -> str:
         try:
             stamp = datetime.strptime(date, "%Y-%m-%d")
         except ValueError:
-            return datetime.now(timezone.utc).isoformat()
-    return stamp.replace(tzinfo=timezone.utc).isoformat()
+            return datetime.now(timezone.utc)
+    return stamp.replace(tzinfo=timezone.utc)

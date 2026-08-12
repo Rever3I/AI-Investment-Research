@@ -78,9 +78,11 @@ working around it — `status_report()` prints the exact key and where to get it
 A number fetched some other way has no provenance, which is the thing this
 layer exists to prevent.
 
-Chinese listings need a licensed Wind terminal, and that adapter is unverified
-against a live one. If `cn_equity` is unavailable, say so plainly instead of
-substituting a US source.
+Chinese listings go through `fetch("cn_equity", "600519")` and need no
+configuration: the primary is Eastmoney's public endpoints, and a six-digit code
+is accepted with or without an exchange suffix. Wind sits behind it for anyone
+with a terminal, unverified against a live one. Banks, insurers and brokers are
+refused with the reason — owner earnings does not describe them.
 
 ## Numbers
 

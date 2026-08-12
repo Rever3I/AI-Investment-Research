@@ -46,6 +46,7 @@ def configure(profile: dict = None, db_path=None) -> list:
     """
     profile = profile if profile is not None else load_profile()
 
+    from .cn_eastmoney import EastmoneyAdapter
     from .cn_wind import WindAdapter
     from .macro_fred import FREDAdapter
     from .prices import _YAHOO_HOSTS, StooqAdapter, YahooAdapter
@@ -54,7 +55,11 @@ def configure(profile: dict = None, db_path=None) -> list:
     register(Chain(domain="us_equity", adapters=[
         SECAdapter(contact=profile.get("sec_contact", ""), db_path=db_path),
     ]))
+    # Eastmoney first because it needs no licence: with Wind alone this domain
+    # was unreachable for everyone without a paid terminal, which is most
+    # people. Wind stays behind it as the source with a support contract.
     register(Chain(domain="cn_equity", adapters=[
+        EastmoneyAdapter(db_path=db_path),
         WindAdapter(),
     ]))
     register(Chain(domain="macro", adapters=[

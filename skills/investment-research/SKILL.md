@@ -77,7 +77,7 @@ print(status_report(configure()))
 | `price` | Yahoo 行情（两个 host），再退到 Stooq | 无 |
 | `us_equity` | SEC EDGAR XBRL 财报数据 | `sec_contact` |
 | `macro` | FRED | `fred_api_key`（免费） |
-| `cn_equity` | Wind | 已授权的 Wind 终端 |
+| `cn_equity` | 东方财富公开接口，再退到 Wind | 无 |
 
 每个 domain 是一条链：主源失败就自动试下一个，并把降级记进日志。
 

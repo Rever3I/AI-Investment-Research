@@ -426,7 +426,10 @@ def test_yahoo_parses_a_quote(monkeypatch):
                                        "currency": "USD"}}]}})
     fact = YahooAdapter().fetch("NVDA")[0]
     assert fact.value == 219.15
-    assert fact.freq == "intraday"
+    # The fixture's stamp is fixed and therefore always in the past, so this is
+    # a settled close rather than a live print. See test_adapter_regressions
+    # for the classification itself.
+    assert fact.freq == "daily"
     assert fact.entity == "NVDA"
 
 

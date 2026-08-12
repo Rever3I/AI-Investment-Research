@@ -128,7 +128,7 @@ that works.
 | `price` | Yahoo chart, two hosts, then Stooq | nothing |
 | `us_equity` | SEC EDGAR XBRL company facts | `sec_contact` |
 | `macro` | FRED | `fred_api_key` (free) |
-| `cn_equity` | Wind | a licensed Wind terminal |
+| `cn_equity` | Eastmoney public endpoints, then Wind | nothing |
 
 ```python
 from airesearch.data.adapters import configure, fetch, status_report
@@ -138,9 +138,12 @@ facts = fetch("us_equity", "KO")      # net income, D&A, capex, share count
 ```
 
 Prices work with no configuration at all, which is the case that matters on a
-fresh clone. The Wind adapter is written to Wind's documented interface but
-**has not been verified against a live terminal** — WindPy ships with the paid
-product and cannot be installed otherwise. Treat it as a starting point.
+fresh clone, and so do Chinese listings: `cn_equity` reads Eastmoney's public
+endpoints, unofficial and undocumented in the same way the Yahoo quote endpoint
+is, so the parser fails loudly rather than returning something plausible. Wind
+sits behind it for anyone who has a terminal. That adapter is written to Wind's
+documented interface but **has not been verified against a live terminal** —
+WindPy ships with the paid product and cannot be installed otherwise.
 
 Screening criteria can be saved and reused: `airesearch.data.screen_store`
 keeps named profiles, and a candidate produced by one carries

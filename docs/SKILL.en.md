@@ -55,7 +55,8 @@ print(status_report(configure()))
 
 That prints which data sources can run. Prices work with no configuration at
 all. US filings need `sec_contact` (a name and email; SEC returns 403 without
-one), and the macro series need a free `fred_api_key`.
+one), and the macro series need a free `fred_api_key`. Chinese listings need
+nothing configured.
 
 Settings live in a JSON profile. `ensure_profile()` writes it with the defaults
 the first time it is called and returns the path; if the file is already there
