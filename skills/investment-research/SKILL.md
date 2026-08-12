@@ -16,18 +16,21 @@ allowed-tools:
   - Bash
 ---
 
-# 投研流水线
+# 一人投资交易投研团队 Pro 版
 
-五个阶段。每一段交给下一段的是一份经过校验的结构化记录而不是一段文字，所以从筛子来的
-标的和从宏观判断反推来的标的，用的是同一把尺子。
+按对冲基金的投研流程搭建，从选股到建仓五段闭环，财报直连 SEC 官方数据，拒绝幻觉，
+不预测涨跌，只分析股票价值。
+
+一个 skill，五个阶段。每一段交给下一段的是一份经过校验的结构化记录而不是一段文字，
+所以从量化筛子来的标的和从宏观判断反推来的标的，用的是同一把尺子。
 
 | 阶段 | 做什么 | 产出 | 指南 |
 | --- | --- | --- | --- |
-| 1 发现 Intake | 找候选标的，两条入口 | `Candidate` | `references/intake.md` |
-| 2 研究 Thesis | 写成可被证伪的观点 | `Thesis` | `references/thesis.md` |
-| 3 估值 Valuation | DCF、反向 DCF、交互式页面、可选分歧压力测试 | `Valuation`、`Verdict` | `references/valuation.md` |
-| 4 仓位 Portfolio | 从情景概率算权重 | `Portfolio` | `references/portfolio.md` |
-| 5 复查 Sellcheck | 和当初的 thesis 比，什么变了 | `Sellcheck` | `references/sellcheck.md` |
+| 发现 | 自定义条件筛选，也支持从一个观点反推能够表达的股票 | `Candidate` | `references/intake.md` |
+| 研究 | 对股票生成完整研究报告，AI 对话辅助用户建立投资观点 | `Thesis` | `references/thesis.md` |
+| 估值 | 生成 DCF 估值模型，包含交互式 HTML 文件，支持实时拖动增长率、折现率 | `Valuation`、`Verdict` | `references/valuation.md` |
+| 仓位 | 使用半 Kelly 计算公式，帮助用户决策仓位数量，控制回撤 | `Portfolio` | `references/portfolio.md` |
+| 复查 | 卖出前调出建仓观点，减少价格波动引起的情绪化交易，增强决策质量 | `Sellcheck` | `references/sellcheck.md` |
 
 **只读你当前所处那一个阶段的指南。** 每份几页，写清了确切的调用、失败模式，以及这一段
 需要的判断。一上来把五份都读了，是把上下文花在你可能根本不会做的工作上。
@@ -67,10 +70,22 @@ print(load_profile())        # 当前实际生效的配置
 如果某个阶段需要的数据源没配置，说清楚缺的是哪一项设置，并打印 `profile_path()`，
 让用户知道该把文件放在哪。
 
+四个 domain，`fetch(domain, key)` 的第一个参数就是它：
+
+| Domain | 数据源 | 需要什么 |
+| --- | --- | --- |
+| `price` | Yahoo 行情（两个 host），再退到 Stooq | 无 |
+| `us_equity` | SEC EDGAR XBRL 财报数据 | `sec_contact` |
+| `macro` | FRED | `fred_api_key`（免费） |
+| `cn_equity` | Wind | 已授权的 Wind 终端 |
+
+每个 domain 是一条链：主源失败就自动试下一个，并把降级记进日志。
+
 ## 三条贯穿所有阶段的规则
 
-**数字来自工具，不来自记忆。** 每个数字都要过 Fact 契约：数据陈旧直接中断，单位或
-量级异常给警告。
+**数字来自工具，不来自模型。** 任何要进入输出的数字，都要先过 `airesearch/factcontract/`
+的 Fact 契约：数据陈旧、同一家公司的金额混着两种货币，这两种直接硬停；单位或量级异常
+给警告。非美元本身不拒绝，人民币股价配人民币财报照常估值。
 
 ```python
 from airesearch.data.adapters import fetch
