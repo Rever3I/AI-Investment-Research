@@ -137,3 +137,9 @@ product and cannot be installed otherwise. Treat it as a starting point.
 
 Saved screening profiles are specified but not yet implemented — intake runs a
 general search.
+
+## Licence
+
+[MIT](LICENSE). Use it, change it, ship it, sell it; keep the copyright notice.
+Provided as is, with no warranty of any kind — including for any number it
+produces.
