@@ -67,6 +67,11 @@ skill 目录自带库，单独复制它就够用。如果你的 AI 工具不会�
 
 用 JSON 而不是 YAML：本项目零第三方依赖，而标准库没有 YAML 解析器。
 
+`ensure_profile()` 会在第一次调用时按默认值把这个文件建出来并返回路径；读设置之前
+先调它，并且报它给的那个路径。路径取决于安装方式——源码仓库里是
+`config/research-profile.json`，作为独立 skill 安装时是
+`~/.ai-investment-research/research-profile.json`——写到另一个位置的设置永远不会被读。
+
 想用另一份配置就设 `AI_RESEARCH_PROFILE` 环境变量指向它。所有配置项都有可用的默认值，配置文件缺失、只写一部分、甚至存坏了，都会退回默认值并给出警告，不会中断流水线。
 
 ## 跑测试
@@ -99,7 +104,7 @@ facts = fetch("us_equity", "KO")      # 净利润、折旧摊销、资本开支�
 
 行情源零配置即可用，这是刚克隆下来时最要紧的情形。Wind 适配器按 Wind 官方文档接口写成，但**未经真实终端验证**——WindPy 随付费产品分发，无法另行安装。请把它当作起点而不是成品。
 
-可保存的筛选 profile 设计已定、尚未实现，intake 跑的是通用搜索。
+筛选条件可以存下来复用：`airesearch.data.screen_store` 管理具名 profile，套用之后候选记录会带上 `screened=True` 和 profile 名。没有存过任何条件时，发现阶段跑的是通用开放搜索——这仍然是默认行为，不是缺省状态。
 
 ## 许可
 

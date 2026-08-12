@@ -26,6 +26,16 @@ DEFAULT_DB_PATH = default_db_path()
 
 
 _SCHEMA = """
+-- UNIQUE(name) so saving under a name that exists replaces those criteria
+-- rather than leaving two profiles a `profile_used` string cannot tell apart.
+CREATE TABLE IF NOT EXISTS screen_profiles (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    name            TEXT NOT NULL UNIQUE CHECK (length(name) > 0),
+    criteria_json   TEXT NOT NULL CHECK (criteria_json NOT IN ('', '{}')),
+    notes           TEXT NOT NULL DEFAULT '',
+    created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%S+00:00','now'))
+);
+
 CREATE TABLE IF NOT EXISTS candidates (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     ticker          TEXT NOT NULL CHECK (length(ticker) > 0),

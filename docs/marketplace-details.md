@@ -188,7 +188,5 @@ For fetching data, yes. The valuation pages it writes work offline afterwards.
 - Owner-earnings DCF suits profitable businesses with identifiable capital
   expenditure. It is a poor fit for banks, insurers, early-stage companies and
   many REITs, and it says so rather than producing a number.
-- Saved screening profiles are specified but not yet implemented, so screening
-  currently runs as a general search.
 - The Wind adapter is unverified against a live terminal.
 - Nothing here is investment advice.

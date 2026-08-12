@@ -91,6 +91,13 @@ to put it somewhere else.
 JSON rather than YAML: this project ships no third-party dependencies, and the
 standard library has no YAML parser.
 
+`ensure_profile()` writes this file with the defaults the first time it is
+called and returns its path; call it before reading a setting and report the
+path it gives you. Where that path is depends on the install —
+`config/research-profile.json` in a checkout,
+`~/.ai-investment-research/research-profile.json` for a standalone skill — and
+settings written to the other one are simply never read.
+
 Point `AI_RESEARCH_PROFILE` at a different file to use another profile. Every
 setting has a working default, so a missing, partial, or even damaged file falls
 back with a warning rather than stopping the pipeline.
@@ -135,8 +142,10 @@ fresh clone. The Wind adapter is written to Wind's documented interface but
 **has not been verified against a live terminal** — WindPy ships with the paid
 product and cannot be installed otherwise. Treat it as a starting point.
 
-Saved screening profiles are specified but not yet implemented — intake runs a
-general search.
+Screening criteria can be saved and reused: `airesearch.data.screen_store`
+keeps named profiles, and a candidate produced by one carries
+`screened=True` and the profile name. With nothing saved, intake runs a
+general open search — still the default, not a missing piece.
 
 ## Licence
 

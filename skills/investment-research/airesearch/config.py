@@ -59,6 +59,39 @@ def profile_path(path=None) -> Path:
     return Path(path).expanduser() if path else default_profile_path()
 
 
+def ensure_profile(path=None) -> Path:
+    """Create the profile file, filled with the defaults, if it is not there.
+
+    The location depends on how this was installed, and neither location was
+    ever created for anyone. That is the whole of the "where does the config go"
+    problem: a user following a setup message wrote `config/research-profile.json`
+    inside a standalone install, where nothing reads it, and then hit a 403 that
+    reads as a network fault rather than a missing setting.
+
+    Creating the file removes the choice. There is one path, it exists, and it
+    can be opened and edited. Returns the path either way, so calling this at
+    the start of a run is safe and idempotent.
+    """
+    resolved = profile_path(path)
+    if resolved.is_file():
+        return resolved
+    try:
+        resolved.parent.mkdir(parents=True, exist_ok=True)
+        resolved.write_text(
+            json.dumps(_DEFAULTS, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        _log.info("Created a research profile with the defaults at %s", resolved)
+    except OSError as exc:
+        # A read-only home is a legitimate deployment, and the pipeline still
+        # runs on defaults there. Warn rather than fail.
+        _log.warning(
+            "Could not create a research profile at %s (%s). The defaults still "
+            "apply, but any setting you add will not persist", resolved, exc,
+        )
+    return resolved
+
+
 def _coerce(loaded: dict, source: Path) -> dict:
     """Keep the settings that are recognised and correctly typed, warn about the rest.
 

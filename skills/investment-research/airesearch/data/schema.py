@@ -68,6 +68,47 @@ class _Record:
 
 
 @dataclass
+class ScreenProfile(_Record):
+    """A saved set of screening criteria, which is what makes `screened=True`
+    mean anything.
+
+    `criteria` is whatever the user decided to screen on. Nothing here
+    interprets the keys and nothing checks them against a list of permitted
+    metrics — a fixed vocabulary would be exactly the built-in screening
+    checklist this pipeline promises not to impose. What the record does
+    guarantee is that the criteria were written down before the screen ran and
+    can be read back afterwards, which is the whole difference between a screen
+    that can be repeated and one that was remembered.
+
+    `name` is how a `Candidate.profile_used` refers back here, so it is stored
+    stripped and compared literally.
+    """
+
+    name: str
+    criteria: dict = field(default_factory=dict)
+    notes: str = ""
+    created_at: str = ""
+    id: int = None
+
+    def __post_init__(self):
+        _require(self.name, "name", "ScreenProfile")
+        self.name = self.name.strip()
+        if not isinstance(self.criteria, dict):
+            raise SchemaError(
+                f"ScreenProfile: criteria must be a dict of the user's own keys, "
+                f"got {type(self.criteria).__name__}"
+            )
+        if not self.criteria:
+            raise SchemaError(
+                "ScreenProfile: criteria is empty. A profile that screens on "
+                "nothing is a general search, and `screened=False` with no "
+                "profile_used already records that case correctly"
+            )
+        if self.created_at:
+            self.created_at = _parse_ts(self.created_at, "ScreenProfile", "created_at")
+
+
+@dataclass
 class Candidate(_Record):
     """Produced by research-intake (Layer 1-2). Entry point for the pipeline.
 

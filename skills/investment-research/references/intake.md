@@ -15,15 +15,66 @@
 ## 两条入口
 
 **筛子优先（Screen-first）** —— 用户想从一个池子里捞候选（「帮我在工业股里找几个便宜
-又有质量的」）。可保存的条件 profile 尚未实现：没有加载器，也没有定义好的文件格式，
-所以跑通用搜索并把 `screened` 设成 `False`。不要当场自己发明一套 profile 格式——
-两个用户各造一种形状，正是将来真正的加载器不得不推翻的东西。可以提一次「保存 profile
-的功能还在路上」，说一次就够，别反复念。
+又有质量的」）。先看有没有存好的条件 profile：有就套用它，并如实记进候选记录；没有就
+跑通用搜索，把 `screened` 设成 `False`、`profile_used` 留空。
+
+不要为了让记录看起来完整而编一个 profile 名字。`screened=False` 是一条诚实的记录，
+一个指向不存在 profile 的名字不是。
 
 **判断优先（Thesis-first）** —— 用户先给出一个观点（「电网并网排队才是 AI 资本开支
 的真正天花板」），想要能表达这个观点的标的。从这个判断往外推到具体的 ticker，用
 WebSearch 去找谁真的站在那条价值链上。这条路没有固定的条件清单，也不该有：判断本身
 就是过滤器。
+
+## 保存下来的筛选条件
+
+```python
+from airesearch.data.schema import ScreenProfile
+from airesearch.data.screen_store import (
+    save_screen_profile, get_screen_profile, list_screen_profiles,
+    delete_screen_profile,
+)
+
+profile = get_screen_profile("quality-industrials")   # None if there is no such name
+available = list_screen_profiles()                    # alphabetical; [] before any exist
+```
+
+`list_screen_profiles` 在一次都没保存过时会抛 `FileNotFoundError`——全新安装根本没有
+这张表。接住它，当作「没有任何 profile」处理，不要把 traceback 甩出去。
+
+用户说「记住这套条件」时保存：
+
+```python
+save_screen_profile(ScreenProfile(
+    name="quality-industrials",
+    criteria={"market": "US", "sector": "industrials",
+              "min_roic": 0.12, "max_net_debt_ebitda": 2.5},
+    notes="工业股，只看资本回报率和杠杆，不看估值",
+))
+```
+
+`criteria` 的键完全由用户定，这里不解释它们，也不拿它们去对任何「允许的指标」清单。
+一套固定词汇表，就是这条流水线承诺不强加的那份内置筛选清单。所以你要做的是把用户
+说的条件如实记下来，而不是翻译成某种规范格式。
+
+同名保存会覆盖。筛子是会被修订的东西——一条规则收紧、一个阈值挪动——自动留版本只会
+让 `profile_used="quality-industrials"` 指向好几套不同的条件，而没人分得清跑的是哪一套。
+
+套用一个 profile 之后，候选记录要如实反映这件事：
+
+```python
+candidate = Candidate(
+    ..., entry_path="screen",
+    source_note=profile.name,
+    screened=True, profile_used=profile.name,
+)
+```
+
+`screened=True` 的意思是**一套写下来的条件真的被套用了**。跑的是通用搜索却写 `True`，
+会让「这只票是怎么进来的」这个问题在几个月后无法回答，而那正是这个字段存在的唯一理由。
+
+删掉一个 profile 不会改动已有的候选记录：哪套条件产出了哪只票是历史事实，因为 profile
+后来被删了就去改它，等于修改过去。
 
 ## 产出 Candidate 记录
 
@@ -48,7 +99,8 @@ row_id = save_candidate(candidate)    # also stamps candidate.id
 三个字段比看上去重要：
 
 - `screened=False` 配一个空的 `profile_used`，对通用搜索来说是一条完整、正常的记录。
-  它不是没写完——不要为了填空自己编一个 profile 名字。
+  它不是没写完——不要为了填空自己编一个 profile 名字。反过来，套用了 profile 就要把
+  两个字段都填上，否则这次筛选等于没发生过。
 - 判断优先那条路上，`source_note` 存的是用户的原话，逐字。后面几段要拿它做对比，
   改写一遍就把要被检验的东西弄丢了。
 - `id` 在保存前是 `None`。`save_candidate` 之后它带上行号，阶段 2 要靠它把工作挂到

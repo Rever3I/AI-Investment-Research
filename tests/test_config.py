@@ -9,6 +9,7 @@ Both used to break the feature they were editing.
 
 import json
 import logging
+import pathlib
 
 import pytest
 
@@ -225,3 +226,50 @@ def test_fixed_pct_has_a_value_behind_it():
     carried the weight it needs."""
     assert isinstance(config.DEFAULTS["fixed_pct"], float)
     assert 0 < config.DEFAULTS["fixed_pct"] <= 1
+
+
+# ── ensure_profile: the "where does the config go" fix ────────────
+
+def test_ensure_profile_creates_the_file_with_the_defaults(tmp_path):
+    """The profile was never created for anyone, and its location depends on
+    the install, so a user following a setup message wrote a file nothing
+    reads and then hit a 403 that looks like a network fault."""
+    target = tmp_path / "nested" / "research-profile.json"
+    assert config.ensure_profile(target) == target
+    assert json.loads(target.read_text(encoding="utf-8")) == dict(config.DEFAULTS)
+
+
+def test_ensure_profile_does_not_overwrite_what_is_already_there(tmp_path):
+    """It is called at the start of a run. Clobbering settings would be worse
+    than never creating the file at all."""
+    target = tmp_path / "research-profile.json"
+    target.write_text('{"output_language": "zh-CN"}', encoding="utf-8")
+    config.ensure_profile(target)
+    assert config.load_profile(target)["output_language"] == "zh-CN"
+
+
+def test_ensure_profile_is_idempotent(tmp_path):
+    target = tmp_path / "research-profile.json"
+    assert config.ensure_profile(target) == config.ensure_profile(target)
+
+
+def test_what_ensure_profile_writes_loads_back_as_the_defaults(tmp_path):
+    """A file that cannot be read back is worse than no file: load_profile
+    warns and silently uses defaults, so the user edits a file with no effect."""
+    target = tmp_path / "research-profile.json"
+    config.ensure_profile(target)
+    assert config.load_profile(target) == dict(config.DEFAULTS)
+
+
+def test_an_unwritable_location_warns_rather_than_failing(tmp_path, monkeypatch, caplog):
+    """A read-only home is a legitimate deployment and the pipeline still runs
+    on defaults there."""
+    target = tmp_path / "research-profile.json"
+
+    def _refuse(*a, **k):
+        raise OSError("read-only file system")
+
+    monkeypatch.setattr(pathlib.Path, "write_text", _refuse)
+    with caplog.at_level(logging.WARNING):
+        assert config.ensure_profile(target) == target
+    assert "not persist" in caplog.text

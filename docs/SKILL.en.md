@@ -46,7 +46,10 @@ The library lives beside this file. Put the skill directory on the path once:
 import sys
 sys.path.insert(0, "<this skill's directory>")
 
+from airesearch.config import ensure_profile
 from airesearch.data.adapters import configure, status_report
+
+print(ensure_profile())                 # creates the settings file on first run
 print(status_report(configure()))
 ```
 
@@ -54,19 +57,15 @@ That prints which data sources can run. Prices work with no configuration at
 all. US filings need `sec_contact` (a name and email; SEC returns 403 without
 one), and the macro series need a free `fred_api_key`.
 
-Settings live in a JSON profile whose location depends on how this was
-installed, so ask for it rather than assuming:
+Settings live in a JSON profile. `ensure_profile()` writes it with the defaults
+the first time it is called and returns the path; if the file is already there
+it is returned untouched. `load_profile()` shows what is in effect.
 
-```python
-from airesearch.config import profile_path, load_profile
-print(profile_path())        # create this file if it does not exist
-print(load_profile())        # what is in effect now
-```
-
-In a source checkout that is `config/research-profile.json`. Installed as a
-skill on its own it is `~/.ai-investment-research/research-profile.json`, which
-is not created for you — a file written to the wrong one of those two is simply
-never read, and the run then fails on a 403 that looks like a network problem.
+Where that path is depends on the install: `config/research-profile.json` in a
+source checkout, `~/.ai-investment-research/research-profile.json` for a
+standalone skill. **Always report the path `ensure_profile()` returns rather
+than composing one** — settings written to the other location are simply never
+read, and the run then fails on a 403 that looks like a network problem.
 `AI_RESEARCH_PROFILE` overrides both.
 
 If a stage needs a source that is not configured, say which setting is missing,

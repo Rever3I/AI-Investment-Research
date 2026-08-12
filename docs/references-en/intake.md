@@ -20,17 +20,74 @@ saved criterion.
 ## The two entry paths
 
 **Screen-first** — the user wants candidates out of a universe ("find me some
-cheap quality names in industrials"). Saved criteria profiles are not
-implemented yet: there is no loader and no defined file format, so run a general
-search and set `screened=False`. Do not improvise a profile format on the spot —
-two users inventing different shapes is exactly what the real loader will have
-to break later. Mention once, without nagging, that saved profiles are coming.
+cheap quality names in industrials"). Look for a saved criteria profile first:
+apply it if there is one and record that honestly on the candidate; otherwise
+run a general search with `screened=False` and an empty `profile_used`.
+
+Do not invent a profile name to make the record look complete. `screened=False`
+is an honest record; a name pointing at a profile that does not exist is not.
 
 **Thesis-first** — the user states a view ("grid interconnect queues are the
 real ceiling on AI capex") and wants the names that express it. Reason from the
 thesis outward to specific tickers, using WebSearch to find who actually sits in
 that value chain. This path has no fixed criteria list and is not supposed to:
 the thesis is the filter.
+
+## Saved screening criteria
+
+```python
+from airesearch.data.schema import ScreenProfile
+from airesearch.data.screen_store import (
+    save_screen_profile, get_screen_profile, list_screen_profiles,
+    delete_screen_profile,
+)
+
+profile = get_screen_profile("quality-industrials")   # None if there is no such name
+available = list_screen_profiles()                    # alphabetical; [] before any exist
+```
+
+`list_screen_profiles` raises `FileNotFoundError` before anything has ever been
+saved — a fresh install has no such table. Catch it and treat it as "no profiles
+yet" rather than surfacing a traceback.
+
+Save when the user says to remember a set of criteria:
+
+```python
+save_screen_profile(ScreenProfile(
+    name="quality-industrials",
+    criteria={"market": "US", "sector": "industrials",
+              "min_roic": 0.12, "max_net_debt_ebitda": 2.5},
+    notes="industrials, judged on returns on capital and leverage, not multiple",
+))
+```
+
+The keys in `criteria` are the user's own. Nothing here interprets them and
+nothing checks them against a list of permitted metrics — a fixed vocabulary
+would be the built-in screening checklist this pipeline promises not to impose.
+So record what they said, rather than translating it into a canonical shape.
+
+Saving under an existing name replaces it. A screen is a thing users revise — a
+rule tightens, a threshold moves — and versioning that automatically would leave
+`profile_used="quality-industrials"` pointing at several different sets of
+criteria with no way to tell which one ran.
+
+When a profile was applied, the candidate has to say so:
+
+```python
+candidate = Candidate(
+    ..., entry_path="screen",
+    source_note=profile.name,
+    screened=True, profile_used=profile.name,
+)
+```
+
+`screened=True` means **a written-down set of criteria was actually applied**.
+Setting it after a general search makes "how did this name get here" unanswerable
+months later, which is the only reason the field exists.
+
+Deleting a profile leaves existing candidates alone: which criteria produced
+which name is a historical fact, and rewriting it because the profile was later
+deleted would edit the past.
 
 ## Producing the Candidate record
 
@@ -57,7 +114,8 @@ Three fields carry more weight than they look:
 
 - `screened=False` with an empty `profile_used` is a complete, normal record for
   a general search. It is not an unfinished one — do not invent a profile name
-  to fill the gap.
+  to fill the gap. The reverse holds too: when a profile was applied, set both
+  fields, or the screen may as well not have happened.
 - `source_note` on the thesis path holds the user's thesis text verbatim. Later
   layers compare against it, so paraphrasing it loses the thing being tested.
 - `id` is None until you save. After `save_candidate` it holds the row id, which

@@ -48,24 +48,23 @@ allowed-tools:
 import sys
 sys.path.insert(0, "<this skill's directory>")
 
+from airesearch.config import ensure_profile
 from airesearch.data.adapters import configure, status_report
+
+print(ensure_profile())                 # creates the settings file on first run
 print(status_report(configure()))
 ```
 
 这会打印出哪些数据源现在能跑。行情零配置即可用。美股财报需要 `sec_contact`（姓名加
 邮箱；不填 SEC 返回 403），宏观序列需要一个免费的 `fred_api_key`。
 
-配置项存在一个 JSON profile 里，位置取决于安装方式，所以要问出来，不要猜：
+配置项存在一个 JSON profile 里。`ensure_profile()` 会在第一次运行时把它按默认值建出来
+并返回路径，已存在则原样返回，不覆盖。要看当前生效的内容用 `load_profile()`。
 
-```python
-from airesearch.config import profile_path, load_profile
-print(profile_path())        # 文件不存在就创建它
-print(load_profile())        # 当前实际生效的配置
-```
-
-在源码仓库里是 `config/research-profile.json`。作为独立 skill 单独安装时是
-`~/.ai-investment-research/research-profile.json`，这个文件不会自动创建——写到两者中
-错误的那一个，就是永远不会被读取，运行随后会失败在一个看起来像网络故障的 403 上。
+路径取决于安装方式：源码仓库里是 `config/research-profile.json`，作为独立 skill 单独
+安装时是 `~/.ai-investment-research/research-profile.json`。**永远报
+`ensure_profile()` 返回的那个路径，不要自己拼一个**——把设置写到两者中错误的那一个，
+就是永远不会被读取，运行随后会失败在一个看起来像网络故障的 403 上。
 `AI_RESEARCH_PROFILE` 环境变量覆盖以上两者。
 
 如果某个阶段需要的数据源没配置，说清楚缺的是哪一项设置，并打印 `profile_path()`，

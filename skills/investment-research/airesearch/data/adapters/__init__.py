@@ -99,4 +99,13 @@ def status_report(rows=None) -> str:
     header = f"Adapters: {len(usable)} of {len(usable) + len(missing)} domains ready"
     if missing:
         header += f"; no source for {', '.join(missing)}"
-    return header + "\n" + "\n".join(lines)
+
+    # Every unavailable adapter's fix is a line in this file, and the file's
+    # location depends on the install. Naming it once, here, is what stops the
+    # reader from having to work that out from a message about SEC or FRED.
+    # `profile_path` and not `ensure_profile`: a report that writes to the
+    # user's home as a side effect of being read is its own surprise.
+    from ...config import profile_path  # noqa: PLC0415 - avoids an import cycle
+    settings = profile_path()
+    state = "" if settings.is_file() else "  (not created yet — ensure_profile())"
+    return header + "\n" + "\n".join(lines) + f"\nSettings: {settings}{state}"

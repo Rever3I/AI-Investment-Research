@@ -28,8 +28,8 @@ _log = logging.getLogger(__name__)
 # Table names this package owns. `row_exists` interpolates a table name into SQL,
 # so the name is checked against this set rather than trusted.
 KNOWN_TABLES = frozenset({
-    "candidates", "theses", "valuations", "verdicts", "portfolios", "sellchecks",
-    "market_cache", "calibration_memory",
+    "screen_profiles", "candidates", "theses", "valuations", "verdicts",
+    "portfolios", "sellchecks", "market_cache", "calibration_memory",
 })
 
 
