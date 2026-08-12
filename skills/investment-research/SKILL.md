@@ -1,14 +1,13 @@
 ---
 name: investment-research
 description: >
-  A five-stage equity research pipeline: find candidates, write a falsifiable
-  thesis, value it with an owner-earnings DCF and a reverse DCF, size the
-  position with Kelly, and check what changed when you think about selling.
-  Numbers come from SEC filings and quoted prices through a contract that
-  hard-stops on stale data, never from recall. Use when the user wants to
-  research a company, screen for ideas, write up an investment case, value a
-  stock, ask what growth the price already assumes, work out a position size,
-  challenge a thesis, or decide whether one still holds.
+  五阶段股票研究流水线：发现候选标的、写出可被证伪的投资观点、用股东盈余 DCF 和
+  反向 DCF 估值、用 Kelly 公式算仓位、在想卖出时复查当初的判断变了什么。数字来自
+  SEC 申报文件和实时报价，全部先过一层数据契约（陈旧数据直接中断），不来自模型记忆。
+  当用户想研究一家公司、筛选标的、写投资逻辑、给股票估值、问当前价格已经隐含了多少
+  增长、算仓位大小、质疑一个投资观点，或者判断当初写下的判断是否还成立时使用。
+  Also use for: research a company, screen for ideas, value a stock, reverse DCF,
+  position sizing, challenge a thesis, decide whether a thesis still holds.
 compatibility: claude-code opencode
 allowed-tools:
   - WebSearch
@@ -17,30 +16,29 @@ allowed-tools:
   - Bash
 ---
 
-# Investment Research
+# 投研流水线
 
-Five stages. Each hands the next a validated record rather than prose, so a name
-that arrived from a screen and one that arrived from a macro view are judged by
-the same standard.
+五个阶段。每一段交给下一段的是一份经过校验的结构化记录而不是一段文字，所以从筛子来的
+标的和从宏观判断反推来的标的，用的是同一把尺子。
 
-| Stage | Does | Produces | Guide |
+| 阶段 | 做什么 | 产出 | 指南 |
 | --- | --- | --- | --- |
-| 1 Intake | finds candidates, two entry paths | `Candidate` | `references/intake.md` |
-| 2 Thesis | the written, falsifiable view | `Thesis` | `references/thesis.md` |
-| 3 Valuation | DCF, reverse DCF, interactive page, optional dissent pass | `Valuation`, `Verdict` | `references/valuation.md` |
-| 4 Portfolio | position weight from scenario probabilities | `Portfolio` | `references/portfolio.md` |
-| 5 Sellcheck | what changed since the thesis was written | `Sellcheck` | `references/sellcheck.md` |
+| 1 发现 Intake | 找候选标的，两条入口 | `Candidate` | `references/intake.md` |
+| 2 研究 Thesis | 写成可被证伪的观点 | `Thesis` | `references/thesis.md` |
+| 3 估值 Valuation | DCF、反向 DCF、交互式页面、可选分歧压力测试 | `Valuation`、`Verdict` | `references/valuation.md` |
+| 4 仓位 Portfolio | 从情景概率算权重 | `Portfolio` | `references/portfolio.md` |
+| 5 复查 Sellcheck | 和当初的 thesis 比，什么变了 | `Sellcheck` | `references/sellcheck.md` |
 
-**Read the guide for the stage you are on, and only that one.** Each is a few
-pages and contains the exact calls, the failure modes, and the judgment the
-stage needs. Reading all five up front spends context on work you may not do.
+**只读你当前所处那一个阶段的指南。** 每份几页，写清了确切的调用、失败模式，以及这一段
+需要的判断。一上来把五份都读了，是把上下文花在你可能根本不会做的工作上。
 
-Stages run on request, not automatically. Finishing a thesis does not mean
-valuing it; the user decides what to spend time on next.
+五份指南是英文的。这不影响研报的输出语言——那由 `output_language` 决定，见下文。
 
-## Setup
+阶段按请求运行，不自动串联。写完 thesis 不等于要估值；下一步花时间在哪，由用户决定。
 
-The library lives beside this file. Put the skill directory on the path once:
+## 安装配置
+
+库就在这个文件旁边。把 skill 目录加进 path，一次即可：
 
 ```python
 import sys
@@ -50,69 +48,60 @@ from airesearch.data.adapters import configure, status_report
 print(status_report(configure()))
 ```
 
-That prints which data sources can run. Prices work with no configuration at
-all. US filings need `sec_contact` (a name and email; SEC returns 403 without
-one), and the macro series need a free `fred_api_key`.
+这会打印出哪些数据源现在能跑。行情零配置即可用。美股财报需要 `sec_contact`（姓名加
+邮箱；不填 SEC 返回 403），宏观序列需要一个免费的 `fred_api_key`。
 
-Settings live in a JSON profile whose location depends on how this was
-installed, so ask for it rather than assuming:
+配置项存在一个 JSON profile 里，位置取决于安装方式，所以要问出来，不要猜：
 
 ```python
 from airesearch.config import profile_path, load_profile
-print(profile_path())        # create this file if it does not exist
-print(load_profile())        # what is in effect now
+print(profile_path())        # 文件不存在就创建它
+print(load_profile())        # 当前实际生效的配置
 ```
 
-In a source checkout that is `config/research-profile.json`. Installed as a
-skill on its own it is `~/.ai-investment-research/research-profile.json`, which
-is not created for you — a file written to the wrong one of those two is simply
-never read, and the run then fails on a 403 that looks like a network problem.
-`AI_RESEARCH_PROFILE` overrides both.
+在源码仓库里是 `config/research-profile.json`。作为独立 skill 单独安装时是
+`~/.ai-investment-research/research-profile.json`，这个文件不会自动创建——写到两者中
+错误的那一个，就是永远不会被读取，运行随后会失败在一个看起来像网络故障的 403 上。
+`AI_RESEARCH_PROFILE` 环境变量覆盖以上两者。
 
-If a stage needs a source that is not configured, say which setting is missing,
-and print `profile_path()` so the user knows where to put it.
+如果某个阶段需要的数据源没配置，说清楚缺的是哪一项设置，并打印 `profile_path()`，
+让用户知道该把文件放在哪。
 
-## Three rules that hold across every stage
+## 三条贯穿所有阶段的规则
 
-**Numbers come from tools, never from recall.** Every figure passes the Fact
-contract, which hard-stops on stale data and warns on unit or magnitude
-anomalies:
+**数字来自工具，不来自记忆。** 每个数字都要过 Fact 契约：数据陈旧直接中断，单位或
+量级异常给警告。
 
 ```python
 from airesearch.data.adapters import fetch
 from airesearch.factcontract import verify
 
-facts = fetch("us_equity", ticker)     # net income, D&A, capex, share count
+facts = fetch("us_equity", ticker)     # 净利润、折旧摊销、资本开支、股本
 price = fetch("price", ticker)[0]
-verify(facts + [price])                # raises if anything is stale
+verify(facts + [price])                # 任何一项陈旧就抛错
 ```
 
-Do not quote a price, a multiple, or a growth rate from memory or from an
-article of unknown vintage. If a number cannot be fetched and verified, say so
-instead of supplying one.
+不要凭记忆、也不要从来路不明的文章里报出价格、倍数或增长率。一个数字如果取不到、
+验不了，就说取不到，不要自己补一个上去。
 
-**The arithmetic is not yours to do.** DCF and position sizing live in
-`airesearch.valuation`, computed in `Decimal` with guards against inputs that
-produce meaningless results. Do not reproduce them mentally or check them
-against your own estimate.
+**算术不归你做。** DCF 和仓位计算在 `airesearch.valuation` 里，用 `Decimal` 精算，
+并对会产生无意义结果的输入设了保护。不要心算复现它们，也不要拿自己的估计去核对。
 
-**Nothing here is advice.** Present what the price assumes, what you believe,
-and what would prove you wrong. Do not tell the user to buy, sell, or hold.
+**这里不提供任何建议。** 呈现价格假设了什么、你相信什么、什么会证明你错。不要告诉
+用户买入、卖出或持有。
 
-## Output language
+## 输出语言
 
 ```python
 from airesearch.config import output_language
 ```
 
-Prose follows that setting. Identifiers do not: tickers, `entry_path`, scenario
-names, `sizing_method`, `mode`, the leading verdict word in a sellcheck, and
-provenance strings in `data_sources` are matched literally by later stages or
-validated against a fixed set. Each stage guide names its own exceptions.
+正文跟随这个设置。标识符不跟随：ticker、`entry_path`、情景名称、`sizing_method`、
+`mode`、sellcheck 结论的首个判定词，以及 `data_sources` 里的来源字符串，都会被后续
+阶段字面匹配、或按固定集合校验。每份阶段指南会各自列出它的例外。
 
-## Where things are stored
+## 数据存在哪
 
-One SQLite file, `db/research.db`, created on first write. Records are appended
-rather than overwritten: re-researching a name keeps the old thesis, revaluing
-keeps the old numbers. That history is what stage 5 compares against, and it is
-the only evidence of whether the falsifiers were any good.
+一个 SQLite 文件，`db/research.db`，首次写入时创建。记录是追加而不是覆盖：重新研究
+一只票会保留旧的 thesis，重新估值会保留旧的数字。这份历史正是第五阶段用来对账的
+东西，也是唯一能说明当初那些证伪条件写得好不好的证据。
