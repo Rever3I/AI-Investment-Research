@@ -1,43 +1,32 @@
-# AI Investment Research
+# AI 投研流水线
 
-English · [简体中文](README.zh-CN.md)
+[English](README.en.md) · 简体中文
 
-An open, portable investment-research pipeline delivered as a single SKILL.md
-package — not locked to Claude Code, not a hosted service. Install it into any
-SKILL.md-compatible AI host, configure your own market and data access, and run
-the pipeline yourself.
+一套开放、可移植的投研流水线，作为单个 SKILL.md 包交付，不绑定 Claude Code，也不是托管服务。装进任何兼容 SKILL.md 的宿主（运行技能的 AI 工具），配置你自己的市场和数据源，自己跑。
 
-## What it does
+## 它做什么
 
-One skill, five stages. Each hands the next a validated record rather than
-prose, so a name that arrived from a quantitative screen and one that arrived
-from a macro view are judged by the same standard.
+一个 skill，五个阶段。每一段交给下一段的是一份经过校验的结构化记录而不是一段文字，所以从量化筛子来的标的和从宏观判断反推来的标的，用的是同一把尺子。
 
-| Stage | Does | Produces |
+| 阶段 | 做什么 | 产出 |
 | --- | --- | --- |
-| Intake | finds candidates from a screen or from a thesis | `Candidate` |
-| Thesis | the written, falsifiable view | `Thesis` |
-| Valuation | DCF, reverse DCF, interactive page, optional dissent pass | `Valuation`, `Verdict` |
-| Portfolio | position weight from scenario probabilities | `Portfolio` |
-| Sellcheck | what changed since the thesis was written | `Sellcheck` |
+| 发现 | 按条件筛，或从一个判断反推 | `Candidate` |
+| 研究 | 写成可被证伪的观点 | `Thesis` |
+| 估值 | DCF、反向 DCF、交互式页面、可选分歧压力测试 | `Valuation`、`Verdict` |
+| 仓位 | 从情景概率算权重 | `Portfolio` |
+| 卖出复查 | 和当初的 thesis 对账 | `Sellcheck` |
 
-`skills/investment-research/` is self-contained: SKILL.md routes to a guide per
-stage, and the Python library sits beside them. Copying that one directory into
-a host gives a working install.
+`skills/investment-research/` 是自包含的：SKILL.md 负责路由，每个阶段一份指南，Python 库就放在旁边。把这一个目录复制进宿主就能用。
 
-## Design principles
+## 设计原则
 
-- **Numbers come from tools, not from the model.** Any figure that reaches an
-  output passes through the Fact contract in `airesearch/factcontract/`, which
-  hard-stops on stale data and warns on unit or magnitude anomalies.
-- **No opinionated defaults.** There is no built-in screening checklist and no
-  mandatory committee. You configure the criteria you want and save them; until
-  you do, intake is a general open search.
-- **Pure stdlib.** No pip dependencies, so it runs wherever Python 3.10+ does.
+- **数字来自工具，不来自模型。** 任何要进入输出的数字，都要先过 `airesearch/factcontract/` 的 Fact 契约：数据陈旧直接硬停，单位或量级异常给警告。
+- **不预装任何立场。** 没有内置的筛选清单，没有预设的红线，没有强制的投委会。筛选标准由你自己定义并保存；在你定义之前，intake 就是一次通用的开放搜索。
+- **纯标准库。** 没有任何 pip 依赖，有 Python 3.10+ 的地方就能跑。
 
-## Installing
+## 安装
 
-Point your host at `skills/investment-research/`, or clone and install:
+让宿主指向 `skills/investment-research/`，或者克隆后原地安装：
 
 ```bash
 git clone https://github.com/Rever3I/ai-investment-research.git
@@ -45,16 +34,13 @@ cd ai-investment-research
 pip install -e .
 ```
 
-The skill directory carries its own library, so copying it alone is enough. If
-your host does not put the skill directory on `sys.path`, SKILL.md shows the one
-line that does.
+skill 目录自带库，单独复制它就够用。如果你的宿主不会把 skill 目录加进 `sys.path`，SKILL.md 里给了那一行代码。
 
-Records land in `db/research.db`, created on first write. Set `AI_RESEARCH_DB`
-to put it somewhere else.
+记录写入 `db/research.db`，首次写入时自动创建。想换位置就设 `AI_RESEARCH_DB` 环境变量。
 
-## Configuration
+## 配置
 
-`config/research-profile.json`:
+`config/research-profile.json` 出厂内容如下（**默认是 `en`，想要中文研报就把它改成 `zh-CN`**）：
 
 ```json
 {
@@ -68,70 +54,46 @@ to put it somewhere else.
 }
 ```
 
-- `output_language` — **the language your research is written in** (thesis prose,
-  valuation commentary, conclusions). Set it to `zh-CN` and the same code
-  produces Chinese reports; any language tag works, there is no whitelist. It
-  does not change the code's own logs and error messages, which stay English so
-  a traceback is searchable by anyone.
-- `sizing_method` — `half_kelly`, `full_kelly`, `fixed_pct`, or `custom`
-- `fixed_pct` — the weight used when `sizing_method` is `fixed_pct`, as a
-  fraction of capital. `custom` takes its weight from the caller instead
-- `debate_enabled` — whether the optional dissent layer participates
-- `sec_contact` — a name and email, e.g. `"Jane Roe jane@example.com"`. SEC
-  requires it in the User-Agent and returns 403 without one, so US filings have
-  no source until it is set
-- `fred_api_key` — a free key from
-  [FRED](https://fredaccount.stlouisfed.org/apikeys), for the macro series that
-  give a discount rate its provenance
-- `position_cap` — concentration ceiling as a fraction of capital, applied after
-  sizing. Kelly knows nothing about the rest of a portfolio; `1.0` is no ceiling
+- `output_language` —— **研究成果用什么语言写**（thesis 正文、估值说明、结论）。填 `zh-CN` 就出中文研报，不需要另一套代码。语言标签不设白名单。注意这不影响程序自身的日志和报错，那些保持英文，方便任何人搜索排查。
+- `sizing_method` —— 仓位算法：`half_kelly` / `full_kelly` / `fixed_pct` / `custom`
+- `fixed_pct` —— `sizing_method` 选 `fixed_pct` 时使用的固定仓位（占总资金的比例）；`custom` 则由调用方直接给出权重
+- `debate_enabled` —— 是否启用可选的分歧辩论层
+- `sec_contact` —— 姓名加邮箱，例如 `"Jane Roe jane@example.com"`。SEC 要求 User-Agent 里带联系方式，不填会返回 403，美股财报就没有数据源
+- `fred_api_key` —— [FRED](https://fredaccount.stlouisfed.org/apikeys) 的免费密钥，用于给折现率提供有出处的无风险利率
+- `position_cap` —— 集中度上限（占总资金的比例），在算完仓位后套用。Kelly 不知道组合里还有什么，这一层判断放在这里；`1.0` 表示不设上限
 
-JSON rather than YAML: this project ships no third-party dependencies, and the
-standard library has no YAML parser.
+用 JSON 而不是 YAML：本项目零第三方依赖，而标准库没有 YAML 解析器。
 
-Point `AI_RESEARCH_PROFILE` at a different file to use another profile. Every
-setting has a working default, so a missing, partial, or even damaged file falls
-back with a warning rather than stopping the pipeline.
+想用另一份配置就设 `AI_RESEARCH_PROFILE` 环境变量指向它。所有配置项都有可用的默认值，配置文件缺失、只写一部分、甚至存坏了，都会退回默认值并给出警告，不会中断流水线。
 
-## Running the tests
+## 跑测试
 
 ```bash
 python -m pytest -q
 ```
 
-## Status
+## 当前进度
 
-All five stages are built, along with the foundation they share: record schemas,
-SQLite storage with enforced referential integrity, the Fact contract, a Decimal
-owner-earnings DCF with reverse-DCF and scenarios, and a Kelly sizing solver
-that handles multi-outcome distributions rather than only the binary case.
+五个阶段全部建成，连同它们共用的底座：记录契约、带外键约束的 SQLite 存储、Fact 契约、基于 Decimal 的股东盈余 DCF（含反向 DCF 与多情景），以及能处理多结果分布（而不只是二元情形）的 Kelly 仓位求解器。
 
-## Data sources
+## 数据源
 
-Adapters return `Fact` objects rather than bare numbers, so a figure cannot
-reach a valuation without a source, a unit and an as-of time attached. Each
-domain is a chain: if the first source fails, the next is tried and the fallback
-is logged, because a primary that quietly always fails looks identical to one
-that works.
+适配器返回的是 `Fact` 对象而不是裸数字，所以一个数值不可能在缺少来源、单位、时点的情况下进入估值。每个 domain 是一条链：主源失败就试下一个，并把降级过程记进日志——因为一个悄悄一直失败的主源，看起来和正常工作的一模一样。
 
-| Domain | Source | Needs |
+| Domain | 数据源 | 需要什么 |
 | --- | --- | --- |
-| `price` | Yahoo chart, two hosts, then Stooq | nothing |
-| `us_equity` | SEC EDGAR XBRL company facts | `sec_contact` |
-| `macro` | FRED | `fred_api_key` (free) |
-| `cn_equity` | Wind | a licensed Wind terminal |
+| `price` | Yahoo 行情（两个 host），再退到 Stooq | 无 |
+| `us_equity` | SEC EDGAR XBRL 财报数据 | `sec_contact` |
+| `macro` | FRED | `fred_api_key`（免费） |
+| `cn_equity` | Wind | 已授权的 Wind 终端 |
 
 ```python
 from airesearch.data.adapters import configure, fetch, status_report
 
-print(status_report(configure()))     # what is wired up and what can run
-facts = fetch("us_equity", "KO")      # net income, D&A, capex, share count
+print(status_report(configure()))     # 哪些接好了、哪些能跑
+facts = fetch("us_equity", "KO")      # 净利润、折旧摊销、资本开支、股本
 ```
 
-Prices work with no configuration at all, which is the case that matters on a
-fresh clone. The Wind adapter is written to Wind's documented interface but
-**has not been verified against a live terminal** — WindPy ships with the paid
-product and cannot be installed otherwise. Treat it as a starting point.
+行情源零配置即可用，这是刚克隆下来时最要紧的情形。Wind 适配器按 Wind 官方文档接口写成，但**未经真实终端验证**——WindPy 随付费产品分发，无法另行安装。请把它当作起点而不是成品。
 
-Saved screening profiles are specified but not yet implemented — intake runs a
-general search.
+可保存的筛选 profile 设计已定、尚未实现，intake 跑的是通用搜索。

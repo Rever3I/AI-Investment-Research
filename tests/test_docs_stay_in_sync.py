@@ -21,9 +21,12 @@ from airesearch import config
 from airesearch.data.schema import SIZING_METHODS
 
 _REPO = Path(__file__).resolve().parent.parent
+# README.md is the Chinese one: it is what GitHub shows on the landing page and
+# what marketplace importers read, and the audience that installs this reads
+# Chinese first. English lives beside it.
 _READMES = {
-    "en": _REPO / "README.md",
-    "zh-CN": _REPO / "README.zh-CN.md",
+    "en": _REPO / "README.en.md",
+    "zh-CN": _REPO / "README.md",
 }
 # The stage guides on disk, so adding or merging one cannot leave the READMEs
 # describing a shape the repo no longer has.
@@ -83,7 +86,7 @@ def test_every_layer_is_listed(lang, path):
 
 @pytest.mark.parametrize("lang,path", sorted(_READMES.items()))
 def test_each_readme_links_to_the_other(lang, path):
-    other = "README.zh-CN.md" if lang == "en" else "README.md"
+    other = "README.md" if lang == "en" else "README.en.md"
     assert other in _text(path), f"{path.name} has no link to {other}"
 
 
