@@ -10,15 +10,15 @@ from contextlib import closing
 
 import pytest
 
-from skills._lib.data.candidate_store import save_candidate
-from skills._lib.data.db_init import init_db
-from skills._lib.data.portfolio_store import (
+from airesearch.data.candidate_store import save_candidate
+from airesearch.data.db_init import init_db
+from airesearch.data.portfolio_store import (
     get_portfolio,
     get_portfolio_for_valuation,
     list_portfolios,
     save_portfolio,
 )
-from skills._lib.data.schema import (
+from airesearch.data.schema import (
     Candidate,
     Portfolio,
     Sellcheck,
@@ -26,16 +26,16 @@ from skills._lib.data.schema import (
     Valuation,
     Verdict,
 )
-from skills._lib.data.sellcheck_store import (
+from airesearch.data.sellcheck_store import (
     get_sellcheck,
     list_sellchecks,
     list_sellchecks_for_thesis,
     save_sellcheck,
 )
-from skills._lib.data.store_support import UnreadableRecord
-from skills._lib.data.thesis_store import save_thesis
-from skills._lib.data.valuation_store import save_valuation
-from skills._lib.data.verdict_store import (
+from airesearch.data.store_support import UnreadableRecord
+from airesearch.data.thesis_store import save_thesis
+from airesearch.data.valuation_store import save_valuation
+from airesearch.data.verdict_store import (
     get_verdict,
     get_verdict_for_valuation,
     list_verdicts,

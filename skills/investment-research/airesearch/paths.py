@@ -25,8 +25,8 @@ PROFILE_ENV_VAR = "AI_RESEARCH_PROFILE"
 
 _USER_DIR = Path.home() / ".ai-investment-research"
 
-# paths.py lives at <root>/skills/_lib/paths.py
-_CHECKOUT_ROOT = Path(__file__).resolve().parents[2]
+# paths.py lives at <root>/skills/investment-research/airesearch/paths.py
+_CHECKOUT_ROOT = Path(__file__).resolve().parents[3]
 
 
 def _is_source_checkout(root: Path) -> bool:

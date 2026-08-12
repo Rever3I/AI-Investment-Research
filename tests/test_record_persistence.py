@@ -12,8 +12,8 @@ import sqlite3
 
 import pytest
 
-from skills._lib.data.db_init import init_db
-from skills._lib.data.schema import (
+from airesearch.data.db_init import init_db
+from airesearch.data.schema import (
     Portfolio,
     Sellcheck,
     Thesis,

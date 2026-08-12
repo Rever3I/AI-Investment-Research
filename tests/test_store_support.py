@@ -8,8 +8,8 @@ import json
 
 import pytest
 
-from skills._lib.data.db_init import init_db
-from skills._lib.data.store_support import (
+from airesearch.data.db_init import init_db
+from airesearch.data.store_support import (
     dumps,
     has_table,
     loads,
@@ -44,7 +44,7 @@ def test_open_for_read_does_not_create_anything(db):
 
 def test_open_for_read_raises_when_the_table_is_absent(db):
     """The Fact contract creates this database holding only fact_log."""
-    from skills._lib.factcontract import store as fact_store
+    from airesearch.factcontract import store as fact_store
 
     fact_store.init_db(db)
     with pytest.raises(FileNotFoundError) as excinfo:
@@ -60,15 +60,15 @@ def test_open_for_read_succeeds_once_the_table_exists(db):
 # ── row existence ─────────────────────────────────────────────────
 
 def test_row_exists_is_false_without_the_table(db):
-    from skills._lib.factcontract import store as fact_store
+    from airesearch.factcontract import store as fact_store
 
     fact_store.init_db(db)
     assert row_exists(db, "candidates", 1) is False
 
 
 def test_row_exists_reflects_the_data(db):
-    from skills._lib.data.candidate_store import save_candidate
-    from skills._lib.data.schema import Candidate
+    from airesearch.data.candidate_store import save_candidate
+    from airesearch.data.schema import Candidate
 
     row_id = save_candidate(
         Candidate(ticker="NVDA", entry_path="screen", source_note="x", market="US",

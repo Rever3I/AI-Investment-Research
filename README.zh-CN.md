@@ -2,28 +2,31 @@
 
 [English](README.md) · 简体中文
 
-一套开放、可移植的投研流水线，以 SKILL.md 形式交付——不绑定 Claude Code，也不是托管服务。装进任何兼容 SKILL.md 的宿主（运行技能的 AI 工具），配置你自己的市场和数据源，自己跑。
+一套开放、可移植的投研流水线，作为单个 SKILL.md 包交付，不绑定 Claude Code，也不是托管服务。装进任何兼容 SKILL.md 的宿主（运行技能的 AI 工具），配置你自己的市场和数据源，自己跑。
 
-## 分层
+## 它做什么
 
-1. **research-intake** —— 双入口（筛选优先 / 论点优先），产出 `Candidate` 记录
-2. **research-thesis** —— 深度研究，产出 `Thesis` 记录
-3. **research-valuation** —— DCF / 可比公司 / 情景分析，产出 `Valuation` 记录和交互式 HTML
-   其中包含可选的分歧压力测试，把 thesis 放到对立面上推敲，未解决的分歧记为 `Verdict`
-4. **research-portfolio** —— 仓位测算（默认半 Kelly），产出 `Portfolio` 记录
-5. **research-sellcheck** —— 卖出时按需触发的 thesis 复查，产出 `Sellcheck` 记录
+一个 skill，五个阶段。每一段交给下一段的是一份经过校验的结构化记录而不是一段文字，所以从量化筛子来的标的和从宏观判断反推来的标的，用的是同一把尺子。
 
-每一层交给下一层的是一份经过校验的结构化记录，而不是一段文字。所以不管标的是从量化筛子来的，还是从一个宏观判断反推来的，走的都是同一条流水线、同一把尺子。
+| 阶段 | 做什么 | 产出 |
+| --- | --- | --- |
+| 发现 | 按条件筛，或从一个判断反推 | `Candidate` |
+| 研究 | 写成可被证伪的观点 | `Thesis` |
+| 估值 | DCF、反向 DCF、交互式页面、可选分歧压力测试 | `Valuation`、`Verdict` |
+| 仓位 | 从情景概率算权重 | `Portfolio` |
+| 卖出复查 | 和当初的 thesis 对账 | `Sellcheck` |
+
+`skills/investment-research/` 是自包含的：SKILL.md 负责路由，每个阶段一份指南，Python 库就放在旁边。把这一个目录复制进宿主就能用。
 
 ## 设计原则
 
-- **数字来自工具，不来自模型。** 任何要进入输出的数字，都要先过 `skills/_lib/factcontract/` 的 Fact 契约：数据陈旧直接硬停，单位或量级异常给警告。
+- **数字来自工具，不来自模型。** 任何要进入输出的数字，都要先过 `airesearch/factcontract/` 的 Fact 契约：数据陈旧直接硬停，单位或量级异常给警告。
 - **不预装任何立场。** 没有内置的筛选清单，没有预设的红线，没有强制的投委会。筛选标准由你自己定义并保存；在你定义之前，intake 就是一次通用的开放搜索。
 - **纯标准库。** 没有任何 pip 依赖，有 Python 3.10+ 的地方就能跑。
 
 ## 安装
 
-各层技能会 import 共享库 `skills/_lib/`，所以仓库根目录必须在你的 AI 工具运行 Python 时可被导入。克隆后原地安装：
+让宿主指向 `skills/investment-research/`，或者克隆后原地安装：
 
 ```bash
 git clone https://github.com/Rever3I/ai-investment-research.git
@@ -31,7 +34,7 @@ cd ai-investment-research
 pip install -e .
 ```
 
-只把某一个 `skills/<layer>/` 目录复制进宿主的 skills 文件夹是不够的——那一层的代码引用了 `skills._lib`，共享库必须跟着走。请让宿主指向整个仓库，或按上面的方式安装。
+skill 目录自带库，单独复制它就够用。如果你的宿主不会把 skill 目录加进 `sys.path`，SKILL.md 里给了那一行代码。
 
 记录写入 `db/research.db`，首次写入时自动创建。想换位置就设 `AI_RESEARCH_DB` 环境变量。
 
@@ -71,7 +74,7 @@ python -m pytest -q
 
 ## 当前进度
 
-六层全部建成，连同它们共用的底座：记录契约、带外键约束的 SQLite 存储、Fact 契约、基于 Decimal 的股东盈余 DCF（含反向 DCF 与多情景），以及能处理多结果分布（而不只是二元情形）的 Kelly 仓位求解器。
+五个阶段全部建成，连同它们共用的底座：记录契约、带外键约束的 SQLite 存储、Fact 契约、基于 Decimal 的股东盈余 DCF（含反向 DCF 与多情景），以及能处理多结果分布（而不只是二元情形）的 Kelly 仓位求解器。
 
 ## 数据源
 
@@ -85,7 +88,7 @@ python -m pytest -q
 | `cn_equity` | Wind | 已授权的 Wind 终端 |
 
 ```python
-from skills._lib.data.adapters import configure, fetch, status_report
+from airesearch.data.adapters import configure, fetch, status_report
 
 print(status_report(configure()))     # 哪些接好了、哪些能跑
 facts = fetch("us_equity", "KO")      # 净利润、折旧摊销、资本开支、股本

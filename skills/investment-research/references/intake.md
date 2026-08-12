@@ -1,21 +1,5 @@
----
-name: research-intake
-description: >
-  Dual-entry candidate discovery for investment research — either screen-first
-  (narrow a universe using saved, user-defined criteria) or thesis-first (start
-  from a macro or structural view and find the tickers that express it). Both
-  paths converge on a single Candidate record that feeds the rest of the
-  pipeline. Use when the user wants to find stock ideas, screen for candidates,
-  or work out which tickers express a market view they hold.
-compatibility: claude-code opencode
-allowed-tools:
-  - WebSearch
-  - Read
-  - Write
-  - Bash
----
+# Stage 1 — Intake: finding candidates
 
-# Research Intake (Layer 1-2)
 
 The entry point of the pipeline. Whatever route a name arrives by, it leaves
 here as a `Candidate` record, so everything downstream judges screen-sourced and
@@ -51,12 +35,12 @@ the thesis is the filter.
 ## Producing the Candidate record
 
 Build one `Candidate` per name and persist it. The dataclass in
-`skills/_lib/data/schema.py` is the contract — it validates on construction, so
+`skills/investment-research/airesearch/data/schema.py` is the contract — it validates on construction, so
 a malformed record fails here rather than three layers downstream.
 
 ```python
-from skills._lib.data.schema import Candidate
-from skills._lib.data.candidate_store import save_candidate
+from airesearch.data.schema import Candidate
+from airesearch.data.candidate_store import save_candidate
 
 candidate = Candidate(
     ticker="NVDA",
@@ -82,11 +66,11 @@ Three fields carry more weight than they look:
 ## Numbers
 
 Any figure that reaches the user passes through the Fact contract in
-`skills/_lib/factcontract/` first. It hard-stops on stale data and warns on
+`skills/investment-research/airesearch/factcontract/` first. It hard-stops on stale data and warns on
 implausible units or magnitudes.
 
 ```python
-from skills._lib.factcontract import Fact, verify
+from airesearch.factcontract import Fact, verify
 
 verify([Fact(name="NVDA_chg_pct", value=-3.39, unit="pct", freq="daily",
              as_of="2026-08-04T20:15:00Z", source="sec-xbrl", entity="NVDA")])
@@ -100,7 +84,7 @@ of unknown vintage. Fetch it, declare it, verify it.
 Write in the user's configured language:
 
 ```python
-from skills._lib.config import output_language
+from airesearch.config import output_language
 
 lang = output_language()   # "en" by default; "zh-CN", "ja", anything the model reads
 ```

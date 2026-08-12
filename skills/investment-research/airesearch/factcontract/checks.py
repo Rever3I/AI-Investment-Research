@@ -10,7 +10,7 @@ Warnings get ignored; hard stops do not. Stale data is the failure mode that
 actually burns you, so it is the one that has to be able to halt the pipeline.
 
 Usage:
-    from skills._lib.factcontract import Fact, verify
+    from airesearch.factcontract import Fact, verify
     report = verify([f1, f2])                        # raises if anything is stale
     report = verify(facts, raise_on_error=False)     # adjudicate without halting
 """
@@ -21,6 +21,7 @@ from datetime import datetime
 from statistics import median
 
 from .fact import (
+    CLOCK_SKEW_TOLERANCE,
     JUMP_MIN_HISTORY,
     JUMP_RATIO_THRESHOLD,
     MAGNITUDE_RANGES,
@@ -72,9 +73,11 @@ def check_staleness(facts, ref: datetime = None):
         if limit is None:
             continue
         age = f.age_seconds(ref)
-        if age < 0:
-            # An as_of in the future is nearly always a timezone mistake, and it
-            # should not pass just because it is not old.
+        if age < -CLOCK_SKEW_TOLERANCE:
+            # Far in the future is a timezone mistake, and it should not pass
+            # just because it is not old. A few minutes ahead is clock skew
+            # between the provider and this machine, which would otherwise
+            # hard-stop on a quote fetched this second.
             issues.append(_issue(
                 "error", "staleness", f,
                 f"as_of is {abs(age)/3600:.1f} hours in the future "

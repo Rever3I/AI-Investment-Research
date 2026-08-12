@@ -13,7 +13,7 @@ Design principles:
     downstream where the cause is no longer obvious
 
 Usage:
-    from skills._lib.factcontract import Fact, verify
+    from airesearch.factcontract import Fact, verify
     f = Fact(name="NVDA_chg_pct", value=-3.39, unit="pct",
              freq="daily", as_of="2026-07-31T20:15:00Z", source="sec-xbrl",
              entity="NVDA")
@@ -55,6 +55,12 @@ MAGNITUDE_RANGES = {
     "count":  (0.0, 1e12),
     "bps":    (0.0, 100000.0),
 }
+
+# A timestamp slightly ahead of the local clock is skew, not a mistake. Data
+# providers stamp from their own machines, and a quote fetched this second can
+# arrive a few seconds in the future. The future-timestamp guard is for timezone
+# errors, which are hours or days out, so it starts beyond this.
+CLOCK_SKEW_TOLERANCE = 15 * 60
 
 # Jump detection: warn when a value exceeds this multiple of the median of its
 # own history.

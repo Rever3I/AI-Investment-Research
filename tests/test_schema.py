@@ -1,6 +1,6 @@
 import pytest
 
-from skills._lib.data.schema import (
+from airesearch.data.schema import (
     Candidate,
     Portfolio,
     SchemaError,

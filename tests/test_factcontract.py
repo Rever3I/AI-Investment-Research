@@ -3,9 +3,9 @@ from pathlib import Path
 
 import pytest
 
-from skills._lib.factcontract import Fact, FactCheckError, FactError, verify
-from skills._lib.factcontract.fact import now_utc
-from skills._lib.factcontract.store import DB_PATH as _UNPATCHED_DB_PATH
+from airesearch.factcontract import Fact, FactCheckError, FactError, verify
+from airesearch.factcontract.fact import now_utc
+from airesearch.factcontract.store import DB_PATH as _UNPATCHED_DB_PATH
 
 
 def _fresh(**overrides):
@@ -139,3 +139,18 @@ def test_jump_against_history_warns(isolated_fact_store):
     report = verify([_fresh(name="JUMP_pct", value=80.0, entity="X")],
                     record=False)
     assert any("jump_ratio" in w for w in report["warnings"])
+
+
+def test_a_timestamp_a_few_seconds_ahead_is_tolerated():
+    """Providers stamp from their own clocks. A quote fetched this second can
+    arrive a few seconds in the future, and hard-stopping on that made the
+    price adapter unusable at random."""
+    skewed = _fresh(as_of=(now_utc() + timedelta(seconds=90)).isoformat())
+    assert verify([skewed], record=False)["ok"] is True
+
+
+def test_a_timestamp_hours_ahead_is_still_refused():
+    """The guard exists for timezone mistakes, which are hours or days out."""
+    wrong_zone = _fresh(as_of=(now_utc() + timedelta(hours=8)).isoformat())
+    with pytest.raises(FactCheckError):
+        verify([wrong_zone], record=False)

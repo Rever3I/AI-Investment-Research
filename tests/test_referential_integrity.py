@@ -12,7 +12,7 @@ from contextlib import closing
 
 import pytest
 
-from skills._lib.data.db_init import connect, init_db
+from airesearch.data.db_init import connect, init_db
 
 ORPHANS = {
     "theses": "INSERT INTO theses (candidate_id, business_overview, risks_json) "

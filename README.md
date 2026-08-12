@@ -2,39 +2,42 @@
 
 English · [简体中文](README.zh-CN.md)
 
-An open, portable investment-research pipeline delivered as SKILL.md packages —
-not locked to Claude Code, not a hosted service. Install the skills into any
-SKILL.md-compatible AI host, configure your own market/data access, and run
+An open, portable investment-research pipeline delivered as a single SKILL.md
+package — not locked to Claude Code, not a hosted service. Install it into any
+SKILL.md-compatible AI host, configure your own market and data access, and run
 the pipeline yourself.
 
-## Layers
+## What it does
 
-1. **research-intake** — dual entry (screen-first / thesis-first), produces a `Candidate` record
-2. **research-thesis** — deep-dive research, produces a `Thesis` record
-3. **research-valuation** — DCF/comps/scenarios, produces a `Valuation` record + interactive HTML
-   Its optional dissent pass puts the thesis under pressure and records what it
-   did not resolve, as a `Verdict`
-4. **research-portfolio** — position sizing (half-Kelly default), produces a `Portfolio` record
-5. **research-sellcheck** — on-demand thesis-drift check at sell time, produces a `Sellcheck` record
+One skill, five stages. Each hands the next a validated record rather than
+prose, so a name that arrived from a quantitative screen and one that arrived
+from a macro view are judged by the same standard.
 
-Every layer hands the next one a validated record rather than prose, so the
-pipeline works the same whether a candidate arrived from a quantitative screen
-or from a macro thesis.
+| Stage | Does | Produces |
+| --- | --- | --- |
+| Intake | finds candidates from a screen or from a thesis | `Candidate` |
+| Thesis | the written, falsifiable view | `Thesis` |
+| Valuation | DCF, reverse DCF, interactive page, optional dissent pass | `Valuation`, `Verdict` |
+| Portfolio | position weight from scenario probabilities | `Portfolio` |
+| Sellcheck | what changed since the thesis was written | `Sellcheck` |
+
+`skills/investment-research/` is self-contained: SKILL.md routes to a guide per
+stage, and the Python library sits beside them. Copying that one directory into
+a host gives a working install.
 
 ## Design principles
 
 - **Numbers come from tools, not from the model.** Any figure that reaches an
-  output passes through the Fact contract in `skills/_lib/factcontract/`, which
+  output passes through the Fact contract in `airesearch/factcontract/`, which
   hard-stops on stale data and warns on unit or magnitude anomalies.
 - **No opinionated defaults.** There is no built-in screening checklist and no
   mandatory committee. You configure the criteria you want and save them; until
   you do, intake is a general open search.
-- **Pure stdlib.** No pip dependencies, so the skills run wherever Python 3.10+ does.
+- **Pure stdlib.** No pip dependencies, so it runs wherever Python 3.10+ does.
 
 ## Installing
 
-The skills import a shared library (`skills/_lib/`), so the repo root has to be
-importable wherever your AI host runs Python. Clone it and install in place:
+Point your host at `skills/investment-research/`, or clone and install:
 
 ```bash
 git clone https://github.com/Rever3I/ai-investment-research.git
@@ -42,9 +45,9 @@ cd ai-investment-research
 pip install -e .
 ```
 
-Copying a single `skills/<layer>/` directory into a host's skills folder is not
-enough on its own — the layer's code refers to `skills._lib`, which has to come
-along. Point your host at this repo, or install it as above.
+The skill directory carries its own library, so copying it alone is enough. If
+your host does not put the skill directory on `sys.path`, SKILL.md shows the one
+line that does.
 
 Records land in `db/research.db`, created on first write. Set `AI_RESEARCH_DB`
 to put it somewhere else.
@@ -98,11 +101,10 @@ python -m pytest -q
 
 ## Status
 
-All six layers are built, along with the foundation they share: record
-schemas, SQLite storage with enforced referential integrity, the Fact contract,
-a Decimal owner-earnings DCF with reverse-DCF and scenarios, and a Kelly sizing
-solver that handles multi-outcome distributions rather than only the binary
-case.
+All five stages are built, along with the foundation they share: record schemas,
+SQLite storage with enforced referential integrity, the Fact contract, a Decimal
+owner-earnings DCF with reverse-DCF and scenarios, and a Kelly sizing solver
+that handles multi-outcome distributions rather than only the binary case.
 
 ## Data sources
 
@@ -120,7 +122,7 @@ that works.
 | `cn_equity` | Wind | a licensed Wind terminal |
 
 ```python
-from skills._lib.data.adapters import configure, fetch, status_report
+from airesearch.data.adapters import configure, fetch, status_report
 
 print(status_report(configure()))     # what is wired up and what can run
 facts = fetch("us_equity", "KO")      # net income, D&A, capex, share count

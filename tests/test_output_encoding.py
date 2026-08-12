@@ -11,8 +11,8 @@ from datetime import timedelta
 
 import pytest
 
-from skills._lib.factcontract import Fact, FactCheckError, format_report, verify
-from skills._lib.factcontract.fact import now_utc
+from airesearch.factcontract import Fact, FactCheckError, format_report, verify
+from airesearch.factcontract.fact import now_utc
 
 # Codepages a stock Windows console actually uses. cp936 is included because a
 # Chinese-locale machine is not a workaround: emoji break there too.
@@ -59,7 +59,7 @@ def test_hard_stop_message_encodes_on_legacy_consoles(codepage):
 
 @pytest.mark.parametrize("codepage", LEGACY_CODEPAGES)
 def test_construction_errors_encode_on_legacy_consoles(codepage):
-    from skills._lib.factcontract import FactError
+    from airesearch.factcontract import FactError
 
     for kwargs in (
         {"source": ""},

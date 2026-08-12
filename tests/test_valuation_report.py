@@ -18,8 +18,8 @@ from decimal import Decimal
 
 import pytest
 
-from skills._lib.valuation import discounted_cash_flow, scenario_values
-from skills._lib.valuation.report import render
+from airesearch.valuation import discounted_cash_flow, scenario_values
+from airesearch.valuation.report import render
 
 
 def _scenarios():

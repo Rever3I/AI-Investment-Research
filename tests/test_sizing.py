@@ -10,7 +10,7 @@ from decimal import Decimal
 
 import pytest
 
-from skills._lib.valuation.sizing import (
+from airesearch.valuation.sizing import (
     SizingError,
     kelly_fraction,
     scenario_returns,
@@ -202,7 +202,7 @@ def test_every_documented_method_is_usable(method):
     """schema.SIZING_METHODS and both READMEs advertise these four, and a test
     enforces the READMEs. Any that raises is a documented feature that is not
     there."""
-    from skills._lib.data.schema import SIZING_METHODS
+    from airesearch.data.schema import SIZING_METHODS
 
     assert method in SIZING_METHODS
     kwargs = {"weight": "0.05"} if method in ("fixed_pct", "custom") else {}
@@ -343,7 +343,7 @@ def test_a_negative_probability_is_caught_even_when_the_set_sums_to_one():
 def test_the_valuation_record_refuses_what_sizing_refuses():
     """A record that persists and then hard-fails two layers later is worse than
     one that never persists."""
-    from skills._lib.data.schema import SchemaError, Valuation
+    from airesearch.data.schema import SchemaError, Valuation
 
     with pytest.raises(SchemaError) as excinfo:
         Valuation(thesis_id=1, discount_rate_source="x", scenarios=[

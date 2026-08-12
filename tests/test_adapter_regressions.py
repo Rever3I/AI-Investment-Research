@@ -9,9 +9,9 @@ price. That is what makes them worth a test each.
 
 import pytest
 
-from skills._lib.data.adapters.base import AdapterError
-from skills._lib.data.adapters.prices import StooqAdapter, YahooAdapter
-from skills._lib.data.adapters.us_sec import SECAdapter
+from airesearch.data.adapters.base import AdapterError
+from airesearch.data.adapters.prices import StooqAdapter, YahooAdapter
+from airesearch.data.adapters.us_sec import SECAdapter
 
 
 # ── fixtures shaped like the filings that broke ───────────────────
@@ -56,7 +56,7 @@ def _complete(**overrides):
 
 
 def _sec(monkeypatch, payload, ticker="X"):
-    from skills._lib.data.adapters import us_sec
+    from airesearch.data.adapters import us_sec
 
     monkeypatch.setattr(us_sec, "cache_get", lambda *a, **k: None)
     monkeypatch.setattr(us_sec, "cache_put", lambda *a, **k: None)
@@ -224,7 +224,7 @@ def test_a_price_not_in_dollars_is_refused(monkeypatch, currency):
     """A London listing quotes in pence, so Shell comes back as 3356 and reads
     as $3,356 against a real price near $45. Both position sizing and the
     reverse DCF are ratios against this number."""
-    from skills._lib.data.adapters import prices
+    from airesearch.data.adapters import prices
 
     monkeypatch.setattr(prices, "get_json", lambda *a, **k: {
         "chart": {"result": [{"meta": {"regularMarketPrice": 3356.0,
@@ -236,7 +236,7 @@ def test_a_price_not_in_dollars_is_refused(monkeypatch, currency):
 
 
 def test_a_dollar_price_records_its_currency(monkeypatch):
-    from skills._lib.data.adapters import prices
+    from airesearch.data.adapters import prices
 
     monkeypatch.setattr(prices, "get_json", lambda *a, **k: {
         "chart": {"result": [{"meta": {"regularMarketPrice": 219.15,
@@ -250,7 +250,7 @@ def test_stooq_is_only_trusted_for_us_symbols(monkeypatch):
     labelled as dollars."""
     import io
 
-    from skills._lib.data.adapters import prices
+    from airesearch.data.adapters import prices
 
     class _Response(io.BytesIO):
         def __enter__(self):

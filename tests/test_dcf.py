@@ -9,7 +9,7 @@ from decimal import Decimal
 
 import pytest
 
-from skills._lib.valuation import (
+from airesearch.valuation import (
     DCFError,
     PriceOutsideBracket,
     discounted_cash_flow,
@@ -276,7 +276,7 @@ def test_probabilities_travel_with_the_values():
 
 
 def test_scenario_output_matches_the_valuation_record_shape():
-    from skills._lib.data.schema import Valuation
+    from airesearch.data.schema import Valuation
 
     results = scenario_values(_scenarios(), _base_inputs())
     record = Valuation(thesis_id=1, scenarios=results,

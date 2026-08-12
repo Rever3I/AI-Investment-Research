@@ -1,24 +1,5 @@
----
-name: research-valuation
-description: >
-  Value a company whose thesis has been written: an owner-earnings DCF across
-  bull, base and bear scenarios with explicit probabilities, a reverse DCF
-  showing what growth the current price already assumes, and a self-contained
-  interactive HTML page the reader can drag the assumptions in. Includes an
-  optional dissent pass that puts the thesis under adversarial pressure and
-  records what it did not resolve. Use when the user wants a company valued,
-  asks what a stock is worth, wants a DCF or a price target, asks what would
-  have to be true to justify the price, or wants a thesis challenged,
-  stress-tested, or reviewed by a committee before sizing.
-compatibility: claude-code opencode
-allowed-tools:
-  - WebSearch
-  - Read
-  - Write
-  - Bash
----
+# Stage 3 — Valuation, and the optional dissent pass
 
-# Research Valuation (Layers 4-5)
 
 Takes a `Thesis` and produces a `Valuation`: scenario values with probabilities
 attached, and an interactive page that lets a reader push on the assumptions
@@ -26,13 +7,13 @@ rather than accept a number.
 
 ## The arithmetic is not yours to do
 
-Every figure comes from `skills/_lib/valuation/`, which computes in `Decimal`
+Every figure comes from `skills/investment-research/airesearch/valuation/`, which computes in `Decimal`
 and refuses inputs that produce meaningless results. Do not do this in your
 head, and do not check its answer against your own — if the two disagree the
 module is right, because it is the thing that will still be right in a year.
 
 ```python
-from skills._lib.valuation import (
+from airesearch.valuation import (
     discounted_cash_flow, implied_growth_rate, scenario_values, expected_value,
 )
 ```
@@ -47,7 +28,7 @@ somewhere else.
 ## Getting the thesis
 
 ```python
-from skills._lib.data.thesis_store import get_thesis
+from airesearch.data.thesis_store import get_thesis
 
 thesis = get_thesis(thesis_id)
 ```
@@ -70,8 +51,8 @@ trailing-twelve-month one:
 The SEC adapter returns exactly these four as Facts, already grouped:
 
 ```python
-from skills._lib.data.adapters import configure, fetch
-from skills._lib.factcontract import verify
+from airesearch.data.adapters import configure, fetch
+from airesearch.factcontract import verify
 
 configure()
 facts = fetch("us_equity", ticker)      # net income, D&A, capex, share count
@@ -82,7 +63,7 @@ verify(facts + [price])                 # hard-stops on anything stale
 Fetched some other way, the same figures have to be declared by hand:
 
 ```python
-from skills._lib.factcontract import Fact, verify
+from airesearch.factcontract import Fact, verify
 
 verify([
     Fact(name="NVDA_net_income", value=..., unit="usd", freq="ttm",
@@ -130,7 +111,7 @@ would corrupt the sizing downstream.
 ## The reverse DCF is the more useful output
 
 ```python
-from skills._lib.valuation import PriceOutsideBracket
+from airesearch.valuation import PriceOutsideBracket
 
 implied = None
 try:
@@ -164,8 +145,8 @@ business, and the reader deserves to know which one they are being shown.
 ```python
 from pathlib import Path
 
-from skills._lib.config import output_language
-from skills._lib.valuation.report import render
+from airesearch.config import output_language
+from airesearch.valuation.report import render
 
 page = render(
     ticker=ticker, scenarios=scenarios, owner_earnings=owner_earnings,
@@ -197,8 +178,8 @@ report styles rows by matching them, and `research-portfolio` reads them), and
 ## Saving
 
 ```python
-from skills._lib.data.schema import Valuation
-from skills._lib.data.valuation_store import save_valuation
+from airesearch.data.schema import Valuation
+from airesearch.data.valuation_store import save_valuation
 
 valuation = Valuation(
     thesis_id=thesis.id,
@@ -222,7 +203,7 @@ exist, and nothing has been sized yet. This pass is off unless the user asked
 for it or configured it on.
 
 ```python
-from skills._lib.config import load_profile
+from airesearch.config import load_profile
 
 if not load_profile()["debate_enabled"]:
     ...   # skip, and say so once rather than running it anyway
@@ -269,8 +250,8 @@ case, it is a mood.
 ## Saving the verdict
 
 ```python
-from skills._lib.data.schema import Verdict
-from skills._lib.data.verdict_store import save_verdict
+from airesearch.data.schema import Verdict
+from airesearch.data.verdict_store import save_verdict
 
 verdict = Verdict(
     valuation_id=valuation.id,

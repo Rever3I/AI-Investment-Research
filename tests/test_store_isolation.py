@@ -16,11 +16,11 @@ from pathlib import Path
 
 import pytest
 
-from skills._lib.data import db_init, store_support
-from skills._lib.data.candidate_store import list_candidates, save_candidate
-from skills._lib.data.schema import Candidate
-from skills._lib.data.thesis_store import save_thesis
-from skills._lib.data.schema import Thesis
+from airesearch.data import db_init, store_support
+from airesearch.data.candidate_store import list_candidates, save_candidate
+from airesearch.data.schema import Candidate
+from airesearch.data.thesis_store import save_thesis
+from airesearch.data.schema import Thesis
 
 _DATA_DIR = Path(store_support.__file__).resolve().parent
 _REAL_DB = Path(__file__).resolve().parent.parent / "db" / "research.db"

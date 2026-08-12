@@ -12,7 +12,7 @@ import logging
 
 import pytest
 
-from skills._lib import config
+from airesearch import config
 
 
 def _write(path, payload):
@@ -187,14 +187,14 @@ def test_explicit_path_beats_the_env_var(monkeypatch, tmp_path):
 def test_shipped_profile_matches_the_defaults_exactly():
     """Values, not just keys: a shipped file that disagrees with DEFAULTS means
     the READMEs document one thing and users get another."""
-    from skills._lib.paths import default_profile_path
+    from airesearch.paths import default_profile_path
 
     shipped = json.loads(default_profile_path().read_text(encoding="utf-8-sig"))
     assert shipped == dict(config.DEFAULTS)
 
 
 def test_shipped_sizing_method_is_one_the_storage_layer_accepts():
-    from skills._lib.data.schema import SIZING_METHODS
+    from airesearch.data.schema import SIZING_METHODS
 
     assert config.DEFAULTS["sizing_method"] in SIZING_METHODS
 

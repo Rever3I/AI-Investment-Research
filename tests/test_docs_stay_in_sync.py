@@ -17,19 +17,18 @@ from pathlib import Path
 
 import pytest
 
-from skills._lib import config
-from skills._lib.data.schema import SIZING_METHODS
+from airesearch import config
+from airesearch.data.schema import SIZING_METHODS
 
 _REPO = Path(__file__).resolve().parent.parent
 _READMES = {
     "en": _REPO / "README.md",
     "zh-CN": _REPO / "README.zh-CN.md",
 }
-# Read from disk rather than hard-coded, so merging or adding a layer cannot
-# leave the READMEs describing a shape the repo no longer has.
+# The stage guides on disk, so adding or merging one cannot leave the READMEs
+# describing a shape the repo no longer has.
 _LAYERS = tuple(sorted(
-    p.name for p in (_REPO / "skills").iterdir()
-    if p.is_dir() and p.name.startswith("research-")
+    p.stem for p in (_REPO / "skills" / "investment-research" / "references").glob("*.md")
 ))
 
 
@@ -77,7 +76,9 @@ def test_every_sizing_method_the_schema_accepts_is_listed(lang, path):
 def test_every_layer_is_listed(lang, path):
     text = _text(path)
     for layer in _LAYERS:
-        assert layer in text, f"{path.name} does not list the {layer} layer"
+        assert layer.lower() in text.lower(), (
+            f"{path.name} does not mention the {layer} stage"
+        )
 
 
 @pytest.mark.parametrize("lang,path", sorted(_READMES.items()))

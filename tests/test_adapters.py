@@ -15,8 +15,8 @@ import json
 
 import pytest
 
-from skills._lib.data.adapters import base
-from skills._lib.data.adapters.base import (
+from airesearch.data.adapters import base
+from airesearch.data.adapters.base import (
     Adapter,
     AdapterError,
     AdapterUnavailable,
@@ -25,10 +25,10 @@ from skills._lib.data.adapters.base import (
     describe,
     register,
 )
-from skills._lib.data.adapters import status_report
-from skills._lib.data.adapters.macro_fred import FREDAdapter
-from skills._lib.data.adapters.prices import StooqAdapter, YahooAdapter
-from skills._lib.data.adapters.us_sec import SECAdapter
+from airesearch.data.adapters import status_report
+from airesearch.data.adapters.macro_fred import FREDAdapter
+from airesearch.data.adapters.prices import StooqAdapter, YahooAdapter
+from airesearch.data.adapters.us_sec import SECAdapter
 
 
 @pytest.fixture(autouse=True)
@@ -348,7 +348,7 @@ def test_a_company_with_no_known_tags_says_what_to_do(monkeypatch):
 
 
 def test_an_unknown_ticker_is_explained(monkeypatch):
-    from skills._lib.data.adapters import us_sec
+    from airesearch.data.adapters import us_sec
 
     monkeypatch.setattr(us_sec, "get_json", lambda *a, **k: {})
     monkeypatch.setattr(us_sec, "cache_get", lambda *a, **k: None)
@@ -360,7 +360,7 @@ def test_an_unknown_ticker_is_explained(monkeypatch):
 
 
 def _stubbed_sec(monkeypatch, payload):
-    from skills._lib.data.adapters import us_sec
+    from airesearch.data.adapters import us_sec
 
     monkeypatch.setattr(us_sec, "cache_get", lambda *a, **k: None)
     monkeypatch.setattr(us_sec, "cache_put", lambda *a, **k: None)
@@ -392,7 +392,7 @@ def test_fred_refuses_an_unknown_series():
 def test_fred_returns_a_yield_as_a_percent_fact(monkeypatch):
     """FRED publishes yields in percent, and converting to a fraction here would
     hide the unit from the check that catches unit errors."""
-    from skills._lib.data.adapters import macro_fred
+    from airesearch.data.adapters import macro_fred
 
     monkeypatch.setattr(macro_fred, "cache_put", lambda *a, **k: None)
     monkeypatch.setattr(macro_fred, "get_json", lambda *a, **k: {
@@ -405,7 +405,7 @@ def test_fred_returns_a_yield_as_a_percent_fact(monkeypatch):
 
 def test_fred_explains_a_market_holiday(monkeypatch):
     """FRED writes '.' for a day with no print."""
-    from skills._lib.data.adapters import macro_fred
+    from airesearch.data.adapters import macro_fred
 
     monkeypatch.setattr(macro_fred, "cache_put", lambda *a, **k: None)
     monkeypatch.setattr(macro_fred, "get_json", lambda *a, **k: {
@@ -418,7 +418,7 @@ def test_fred_explains_a_market_holiday(monkeypatch):
 # ── prices ────────────────────────────────────────────────────────
 
 def test_yahoo_parses_a_quote(monkeypatch):
-    from skills._lib.data.adapters import prices
+    from airesearch.data.adapters import prices
 
     monkeypatch.setattr(prices, "get_json", lambda *a, **k: {
         "chart": {"result": [{"meta": {"regularMarketPrice": 219.15,
@@ -433,7 +433,7 @@ def test_yahoo_parses_a_quote(monkeypatch):
 def test_yahoo_says_so_when_the_shape_changes(monkeypatch):
     """This endpoint is unofficial. A silent None would become a price of zero
     somewhere downstream."""
-    from skills._lib.data.adapters import prices
+    from airesearch.data.adapters import prices
 
     monkeypatch.setattr(prices, "get_json", lambda *a, **k: {"chart": {"result": []}})
     with pytest.raises(AdapterError) as excinfo:
@@ -443,7 +443,7 @@ def test_yahoo_says_so_when_the_shape_changes(monkeypatch):
 
 def test_the_two_yahoo_hosts_are_distinguishable():
     """Two chain entries that look identical hide which one answered."""
-    from skills._lib.data.adapters.prices import _YAHOO_HOSTS
+    from airesearch.data.adapters.prices import _YAHOO_HOSTS
 
     names = {YahooAdapter(host).name for host in _YAHOO_HOSTS}
     assert len(names) == len(_YAHOO_HOSTS)
@@ -451,7 +451,7 @@ def test_the_two_yahoo_hosts_are_distinguishable():
 
 def test_stooq_adds_the_market_suffix_callers_forget(monkeypatch):
     import io
-    from skills._lib.data.adapters import prices
+    from airesearch.data.adapters import prices
 
     captured = {}
 
@@ -475,7 +475,7 @@ def test_stooq_adds_the_market_suffix_callers_forget(monkeypatch):
 
 def test_stooq_explains_an_unknown_symbol(monkeypatch):
     import io
-    from skills._lib.data.adapters import prices
+    from airesearch.data.adapters import prices
 
     class _Response(io.BytesIO):
         def __enter__(self):
@@ -498,7 +498,7 @@ def test_stooq_explains_an_unknown_symbol(monkeypatch):
 # ── Wind, which cannot be exercised here ──────────────────────────
 
 def test_wind_without_the_terminal_is_unavailable_and_explains_why():
-    from skills._lib.data.adapters.cn_wind import WindAdapter
+    from airesearch.data.adapters.cn_wind import WindAdapter
 
     adapter = WindAdapter()
     assert adapter.available() is False
@@ -508,7 +508,7 @@ def test_wind_without_the_terminal_is_unavailable_and_explains_why():
 def test_wind_builds_facts_from_a_response_shape():
     """The parts that do not need a terminal are checked with a stub. The live
     integration is not verified — see the module docstring."""
-    from skills._lib.data.adapters.cn_wind import WindAdapter
+    from airesearch.data.adapters.cn_wind import WindAdapter
 
     class _Client:
         ErrorCode = 0
@@ -530,7 +530,7 @@ def test_wind_builds_facts_from_a_response_shape():
 
 
 def test_wind_surfaces_its_error_codes():
-    from skills._lib.data.adapters.cn_wind import WindAdapter
+    from airesearch.data.adapters.cn_wind import WindAdapter
 
     class _Client:
         def isconnected(self):
@@ -551,7 +551,7 @@ def test_wind_surfaces_its_error_codes():
 # ── configure() ───────────────────────────────────────────────────
 
 def test_configure_registers_every_domain():
-    from skills._lib.data.adapters import configure
+    from airesearch.data.adapters import configure
 
     rows = configure(profile={})
     assert {row["domain"] for row in rows} == {
@@ -560,7 +560,7 @@ def test_configure_registers_every_domain():
 
 def test_configure_reports_what_cannot_run_rather_than_raising():
     """A fresh clone with no credentials must import and report, not fail."""
-    from skills._lib.data.adapters import configure
+    from airesearch.data.adapters import configure
 
     rows = configure(profile={})
     unavailable = [row for row in rows if not row["available"]]
@@ -570,7 +570,7 @@ def test_configure_reports_what_cannot_run_rather_than_raising():
 
 def test_prices_work_with_no_configuration_at_all():
     """The number most often wanted on an unconfigured machine."""
-    from skills._lib.data.adapters import configure
+    from airesearch.data.adapters import configure
 
     rows = configure(profile={})
     price_rows = [row for row in rows if row["domain"] == "price"]
@@ -578,7 +578,7 @@ def test_prices_work_with_no_configuration_at_all():
 
 
 def test_credentials_from_the_profile_reach_their_adapters():
-    from skills._lib.data.adapters import configure
+    from airesearch.data.adapters import configure
 
     rows = configure(profile={"sec_contact": "Jane Roe jane@example.com",
                               "fred_api_key": "k"})

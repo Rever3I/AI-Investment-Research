@@ -7,12 +7,12 @@ turns into a wrong position size.
 
 import pytest
 
-from skills._lib.data.candidate_store import save_candidate
-from skills._lib.data.db_init import init_db
-from skills._lib.data.schema import Candidate, Thesis, Valuation
-from skills._lib.data.thesis_store import save_thesis
-from skills._lib.data.store_support import UnreadableRecord
-from skills._lib.data.valuation_store import (
+from airesearch.data.candidate_store import save_candidate
+from airesearch.data.db_init import init_db
+from airesearch.data.schema import Candidate, Thesis, Valuation
+from airesearch.data.thesis_store import save_thesis
+from airesearch.data.store_support import UnreadableRecord
+from airesearch.data.valuation_store import (
     get_valuation,
     get_valuation_for_thesis,
     list_valuations,

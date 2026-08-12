@@ -1,21 +1,5 @@
----
-name: research-thesis
-description: >
-  Deep-dive research on a candidate that survived intake, producing a written
-  investment thesis: what the business is, who runs it, what it competes with,
-  how large the opportunity is, what the risks are, what the author believes
-  that the market does not, and what would prove that belief wrong. Use when the
-  user wants a company researched properly, wants to write up an investment
-  case, or asks what they would need to believe for a name to work.
-compatibility: claude-code opencode
-allowed-tools:
-  - WebSearch
-  - Read
-  - Write
-  - Bash
----
+# Stage 2 — Thesis: the written, falsifiable view
 
-# Research Thesis (Layer 3)
 
 Takes a `Candidate` from `research-intake` and turns it into a `Thesis`: the
 first point in the pipeline where a view gets committed to writing and made
@@ -43,7 +27,7 @@ than moods.
 ## Getting the candidate
 
 ```python
-from skills._lib.data.candidate_store import get_candidate, list_candidates
+from airesearch.data.candidate_store import get_candidate, list_candidates
 
 candidate = get_candidate(candidate_id)          # if the user named an id
 recent = list_candidates(market="US", limit=10)  # to pick from
@@ -82,7 +66,7 @@ Adapters return `Fact` objects, so a figure arrives with its source, unit and
 as-of time already attached. Configure once, then fetch:
 
 ```python
-from skills._lib.data.adapters import configure, fetch, status_report
+from airesearch.data.adapters import configure, fetch, status_report
 
 print(status_report(configure()))          # what can run in this installation
 facts = fetch("us_equity", ticker)         # net income, D&A, capex, share count
@@ -103,7 +87,7 @@ substituting a US source.
 Every figure passes through the Fact contract before it reaches the write-up:
 
 ```python
-from skills._lib.factcontract import Fact, verify
+from airesearch.factcontract import Fact, verify
 
 verify([
     # as_of is the period the figure describes. Use the real filing date — the
@@ -126,7 +110,7 @@ auditable a year later when the numbers have all moved.
 ## Output language
 
 ```python
-from skills._lib.config import output_language
+from airesearch.config import output_language
 lang = output_language()   # "en" by default; "zh-CN", "ja", anything the model reads
 ```
 
@@ -147,8 +131,8 @@ paraphrase destroys the thing being tested.
 ## Saving
 
 ```python
-from skills._lib.data.schema import Thesis
-from skills._lib.data.thesis_store import save_thesis
+from airesearch.data.schema import Thesis
+from airesearch.data.thesis_store import save_thesis
 
 thesis = Thesis(
     candidate_id=candidate.id,

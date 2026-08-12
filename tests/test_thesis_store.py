@@ -7,10 +7,10 @@ surfaces as a wrong answer much later.
 
 import pytest
 
-from skills._lib.data.candidate_store import save_candidate
-from skills._lib.data.db_init import init_db
-from skills._lib.data.schema import Candidate, Thesis
-from skills._lib.data.thesis_store import (
+from airesearch.data.candidate_store import save_candidate
+from airesearch.data.db_init import init_db
+from airesearch.data.schema import Candidate, Thesis
+from airesearch.data.thesis_store import (
     get_thesis,
     get_thesis_for_candidate,
     list_theses,
@@ -74,7 +74,7 @@ def test_save_rejects_a_candidate_that_does_not_exist(db, candidate_id):
 
 
 def test_save_works_on_a_database_the_fact_contract_created(db, candidate_id):
-    from skills._lib.factcontract import store as fact_store
+    from airesearch.factcontract import store as fact_store
 
     fact_store.init_db(db)
     assert save_thesis(_thesis(candidate_id), db_path=db) > 0
@@ -189,7 +189,7 @@ def test_reads_do_not_create_a_database(tmp_path):
 def test_reads_report_clearly_when_only_the_fact_log_exists(db):
     """The Fact contract shares this database and creates it holding only
     fact_log. A file-existence check would sail past that and die on the SELECT."""
-    from skills._lib.factcontract import store as fact_store
+    from airesearch.factcontract import store as fact_store
 
     fact_store.init_db(db)
     with pytest.raises(FileNotFoundError):

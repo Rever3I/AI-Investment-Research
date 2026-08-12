@@ -16,11 +16,11 @@ from contextlib import closing
 
 import pytest
 
-from skills._lib.data.candidate_store import list_candidates, save_candidate
-from skills._lib.data.db_init import init_db
-from skills._lib.data.schema import Candidate, Thesis
-from skills._lib.data.store_support import UnreadableRecord
-from skills._lib.data.thesis_store import (
+from airesearch.data.candidate_store import list_candidates, save_candidate
+from airesearch.data.db_init import init_db
+from airesearch.data.schema import Candidate, Thesis
+from airesearch.data.store_support import UnreadableRecord
+from airesearch.data.thesis_store import (
     get_thesis,
     get_thesis_for_candidate,
     list_theses,

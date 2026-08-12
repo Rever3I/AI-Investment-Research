@@ -1,20 +1,5 @@
----
-name: research-sellcheck
-description: >
-  Compare a position's original thesis against the present when the user is
-  deciding whether to exit, and separate what actually changed from what merely
-  feels different. Use when the user says they are thinking of selling, asks
-  whether a thesis still holds, wants to know if anything has broken, or asks
-  what has changed since they bought.
-compatibility: claude-code opencode
-allowed-tools:
-  - WebSearch
-  - Read
-  - Write
-  - Bash
----
+# Stage 5 — Sellcheck: what changed since you bought
 
-# Research Sellcheck (Layer 7-8)
 
 Runs when the user is thinking about selling. There is deliberately no monitor
 behind it — no polling, no alerts, no scheduled scan. Continuous monitoring was
@@ -45,8 +30,8 @@ than broken. Say so plainly; discomfort is not information.
 ## Reading the original argument
 
 ```python
-from skills._lib.data.thesis_store import get_thesis, get_thesis_for_candidate
-from skills._lib.data.sellcheck_store import list_sellchecks_for_thesis
+from airesearch.data.thesis_store import get_thesis, get_thesis_for_candidate
+from airesearch.data.sellcheck_store import list_sellchecks_for_thesis
 
 thesis = get_thesis(thesis_id)
 history = list_sellchecks_for_thesis(thesis.id)   # earlier rechecks, newest first
@@ -76,8 +61,8 @@ now true and whether it differs:
 ## Saving
 
 ```python
-from skills._lib.data.schema import Sellcheck
-from skills._lib.data.sellcheck_store import save_sellcheck
+from airesearch.data.schema import Sellcheck
+from airesearch.data.sellcheck_store import save_sellcheck
 
 sellcheck = Sellcheck(
     thesis_id=thesis.id,

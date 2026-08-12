@@ -1,22 +1,8 @@
----
-name: research-portfolio
-description: >
-  Turn a valuation's scenario probabilities into a position weight, using half
-  Kelly by default, full Kelly or a fixed percentage if configured, with an
-  optional concentration cap. Use when the user asks how much to buy, what
-  position size to take, how to size a trade, or what weight a name deserves in
-  the portfolio.
-compatibility: claude-code opencode
-allowed-tools:
-  - Read
-  - Write
-  - Bash
----
+# Stage 4 — Position sizing
 
-# Research Portfolio (Layer 6)
 
 Converts the scenario probabilities from `research-valuation` into a fraction of
-capital. The arithmetic is in `skills/_lib/valuation/sizing.py` and is not yours
+capital. The arithmetic is in `skills/investment-research/airesearch/valuation/sizing.py` and is not yours
 to reproduce.
 
 ## The honest caveat, stated up front
@@ -33,9 +19,9 @@ weight computed to two decimal places on top of them.
 ## Sizing
 
 ```python
-from skills._lib.config import load_profile
-from skills._lib.data.valuation_store import get_valuation
-from skills._lib.valuation.sizing import size_position
+from airesearch.config import load_profile
+from airesearch.data.valuation_store import get_valuation
+from airesearch.valuation.sizing import size_position
 
 valuation = get_valuation(valuation_id)
 profile = load_profile()
@@ -57,8 +43,8 @@ calculation is a ratio against it, so a stale price silently scales the answer.
 The price adapter needs no configuration:
 
 ```python
-from skills._lib.data.adapters import configure, fetch
-from skills._lib.factcontract import verify
+from airesearch.data.adapters import configure, fetch
+from airesearch.factcontract import verify
 
 configure()
 quote = fetch("price", ticker)[0]
@@ -110,8 +96,8 @@ whether to hold the security at all, not a weight.
 ## Saving
 
 ```python
-from skills._lib.data.schema import Portfolio
-from skills._lib.data.portfolio_store import save_portfolio
+from airesearch.data.schema import Portfolio
+from airesearch.data.portfolio_store import save_portfolio
 
 portfolio = Portfolio(
     valuation_id=valuation.id,

@@ -11,7 +11,7 @@ def isolated_fact_store(monkeypatch, tmp_path):
     calls verify() would write fixture values into the developer's real
     db/research.db and corrupt the magnitude baseline it learns from.
     """
-    from skills._lib.factcontract import store as store_mod
+    from airesearch.factcontract import store as store_mod
 
     monkeypatch.setattr(store_mod, "DB_PATH", tmp_path / "fact-store" / "research.db")
     return store_mod
@@ -32,7 +32,7 @@ def isolated_record_store(monkeypatch, tmp_path):
     and escape this fixture — which is why store_support documents that as
     forbidden, and why test_store_isolation.py checks the rule holds.
     """
-    from skills._lib.data import db_init
+    from airesearch.data import db_init
 
     scratch = tmp_path / "record-store" / "research.db"
     monkeypatch.setattr(db_init, "DEFAULT_DB_PATH", scratch)

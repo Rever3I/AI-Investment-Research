@@ -1,12 +1,12 @@
 import pytest
 
-from skills._lib.data.candidate_store import (
+from airesearch.data.candidate_store import (
     get_candidate,
     list_candidates,
     save_candidate,
 )
-from skills._lib.data.db_init import init_db
-from skills._lib.data.schema import Candidate
+from airesearch.data.db_init import init_db
+from airesearch.data.schema import Candidate
 
 
 @pytest.fixture
@@ -62,7 +62,7 @@ def test_reads_report_clearly_when_the_fact_contract_made_the_database_first(db)
     fact_log. A read that only checked for the file would sail past that and die
     on the SELECT with a bare "no such table" — on a fresh clone, in the order
     the shipped SKILL.md tells the host to work."""
-    from skills._lib.factcontract import store as fact_store
+    from airesearch.factcontract import store as fact_store
 
     fact_store.init_db(db)
     assert db.exists()
@@ -76,7 +76,7 @@ def test_reads_report_clearly_when_the_fact_contract_made_the_database_first(db)
 def test_saving_works_after_the_fact_contract_made_the_database(db):
     """Writes must still succeed in that same situation, adding the candidates
     table alongside fact_log."""
-    from skills._lib.factcontract import store as fact_store
+    from airesearch.factcontract import store as fact_store
 
     fact_store.init_db(db)
     row_id = save_candidate(_candidate(), db_path=db)

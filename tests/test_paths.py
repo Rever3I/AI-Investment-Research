@@ -1,6 +1,6 @@
 """Where this project's files land, across the ways the repo gets installed.
 
-Both the database and the config file resolve through skills._lib.paths, so that
+Both the database and the config file resolve through airesearch.paths, so that
 the two cannot disagree about what "the repo root" means. Getting this wrong is
 quiet rather than loud: the data goes somewhere unwritable, or somewhere a
 package upgrade deletes.
@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from skills._lib import paths
+from airesearch import paths
 
 RESOLVERS = {
     "db": (paths.default_db_path, paths.DB_ENV_VAR, Path("db") / "research.db"),

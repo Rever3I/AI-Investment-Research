@@ -1,14 +1,13 @@
-"""Make the repo root importable for the test suite.
+"""Make the skill's library importable for the test suite.
 
-Lives at the repo root rather than in tests/ so pytest also treats this
-directory as its rootdir. Without that anchor, invoking pytest with an absolute
-path from another drive sends it walking toward the filesystem root looking for
-config, which can fail outright on protected system directories.
+The library lives inside the skill directory so that directory is
+self-contained: a marketplace that copies `skills/investment-research/` gets a
+working install, which was not true when the code sat in a sibling folder.
 """
 
 import sys
 from pathlib import Path
 
-_REPO_ROOT = Path(__file__).resolve().parent
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
+_SKILL = Path(__file__).resolve().parent / "skills" / "investment-research"
+if str(_SKILL) not in sys.path:
+    sys.path.insert(0, str(_SKILL))
