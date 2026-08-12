@@ -7,6 +7,8 @@ plausible depreciation figure, and a London price in pence is still a plausible
 price. That is what makes them worth a test each.
 """
 
+from pathlib import Path
+
 import pytest
 
 from airesearch.data.adapters.base import AdapterError
@@ -218,6 +220,31 @@ def test_a_fifty_three_week_year_is_still_a_year(monkeypatch):
 
 
 # ── prices must not lie about their currency ──────────────────────
+
+# ── setup messages must point at the file that is actually read ───
+
+@pytest.mark.parametrize("build", [
+    lambda: __import__("airesearch.data.adapters.us_sec", fromlist=["x"])
+             .SECAdapter(contact=""),
+    lambda: __import__("airesearch.data.adapters.macro_fred", fromlist=["x"])
+             .FREDAdapter(api_key=""),
+])
+def test_a_setup_message_names_the_profile_path_that_is_read(build, monkeypatch):
+    """These messages said `config/research-profile.json`, which is only right
+    in a source checkout. Copied into a host as a standalone skill, the profile
+    is read from ~/.ai-investment-research/ instead — so a buyer following the
+    message created a file nothing reads, and the resulting 403 looked like a
+    network fault rather than a missing setting."""
+    from airesearch import config
+
+    fake = Path("Z:/somewhere/else/research-profile.json")
+    monkeypatch.setattr(config, "profile_path", lambda path=None: fake)
+
+    reason = build().unavailable_reason()
+    assert str(fake) in reason, (
+        f"the message does not name the profile path in effect: {reason!r}"
+    )
+
 
 def _quote(monkeypatch, currency, price=3356.0):
     from airesearch.data.adapters import prices

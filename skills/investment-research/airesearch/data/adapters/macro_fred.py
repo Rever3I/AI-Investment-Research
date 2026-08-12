@@ -52,10 +52,11 @@ class FREDAdapter(Adapter):
     def unavailable_reason(self) -> str:
         if self.available():
             return ""
+        from ...config import profile_path  # noqa: PLC0415 - avoids a cycle
         return (
             "FRED needs a free API key. Register at "
             "https://fredaccount.stlouisfed.org/apikeys and set `fred_api_key` "
-            "in config/research-profile.json."
+            f"in {profile_path()} (create the file if it is not there)."
         )
 
     def fetch(self, key: str, **kwargs) -> list:

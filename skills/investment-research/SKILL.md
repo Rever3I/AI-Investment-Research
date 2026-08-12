@@ -51,10 +51,26 @@ print(status_report(configure()))
 ```
 
 That prints which data sources can run. Prices work with no configuration at
-all. US filings need `sec_contact` in `config/research-profile.json` (a name and
-email; SEC returns 403 without one), and the macro series need a free
-`fred_api_key`. If a stage needs a source that is not configured, say which
-setting is missing rather than working around it.
+all. US filings need `sec_contact` (a name and email; SEC returns 403 without
+one), and the macro series need a free `fred_api_key`.
+
+Settings live in a JSON profile whose location depends on how this was
+installed, so ask for it rather than assuming:
+
+```python
+from airesearch.config import profile_path, load_profile
+print(profile_path())        # create this file if it does not exist
+print(load_profile())        # what is in effect now
+```
+
+In a source checkout that is `config/research-profile.json`. Installed as a
+skill on its own it is `~/.ai-investment-research/research-profile.json`, which
+is not created for you — a file written to the wrong one of those two is simply
+never read, and the run then fails on a 403 that looks like a network problem.
+`AI_RESEARCH_PROFILE` overrides both.
+
+If a stage needs a source that is not configured, say which setting is missing,
+and print `profile_path()` so the user knows where to put it.
 
 ## Three rules that hold across every stage
 

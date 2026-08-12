@@ -111,10 +111,12 @@ class SECAdapter(Adapter):
     def unavailable_reason(self) -> str:
         if self.available():
             return ""
+        from ...config import profile_path  # noqa: PLC0415 - avoids a cycle
         return (
             "SEC requires a User-Agent naming a contact email. Set "
-            "`sec_contact` in config/research-profile.json, e.g. "
-            '"Jane Roe jane@example.com". Without it SEC returns 403.'
+            f"`sec_contact` in {profile_path()} (create the file if it is not "
+            'there), e.g. "Jane Roe jane@example.com". Without it SEC '
+            "returns 403."
         )
 
     # ── ticker resolution ─────────────────────────────────────────
