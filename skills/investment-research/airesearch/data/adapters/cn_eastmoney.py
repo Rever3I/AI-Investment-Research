@@ -207,6 +207,16 @@ class EastmoneyAdapter(Adapter):
         if live and live >= _MIN_PLAUSIBLE_SHARES:
             return live, "f84 shares outstanding"
 
+        # Tencent publishes market capitalisation and price, and their ratio is
+        # the count now. Preferred over the balance sheet because the balance
+        # sheet's is the count at the last year end, and it answered every time
+        # Eastmoney's quote endpoint was returning 502.
+        from .cn_tencent import shares_outstanding  # noqa: PLC0415 - optional path
+
+        derived = shares_outstanding(secucode)
+        if derived and derived >= _MIN_PLAUSIBLE_SHARES:
+            return derived, "tencent market cap over price"
+
         balance = self._report(_BALANCE, secucode) or {}
         registered = _number(balance.get("SHARE_CAPITAL"))
         if not registered or registered < _MIN_PLAUSIBLE_SHARES:

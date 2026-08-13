@@ -33,9 +33,19 @@ MOUTAI_QUOTE = {"data": {"f57": "600519", "f58": "贵州茅台",
 
 
 def _stub(monkeypatch, cashflow=None, income=None, balance=None, quote=None,
-          quote_error=None):
-    """Route a stubbed get_json by which endpoint the URL names."""
-    from airesearch.data.adapters import cn_eastmoney
+          quote_error=None, tencent_shares=None):
+    """Route a stubbed get_json by which endpoint the URL names.
+
+    The Tencent share-count fallback is stubbed off by default. Left live it
+    would make these tests reach the network, and a suite that does that fails
+    on a plane and passes for the wrong reason everywhere else — three tests
+    here about the balance-sheet fallback were silently exercising Tencent
+    instead.
+    """
+    from airesearch.data.adapters import cn_eastmoney, cn_tencent
+
+    monkeypatch.setattr(cn_tencent, "shares_outstanding",
+                        lambda code: tencent_shares)
 
     def fake(url, headers=None, timeout=None):
         if "push2" in url:

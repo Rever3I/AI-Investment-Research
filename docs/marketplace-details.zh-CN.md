@@ -96,12 +96,13 @@
 
 ## 数据源
 
-SEC EDGAR XBRL（免费）+ Yahoo/Stooq 行情（零配置）+ FRED 宏观 + Wind（可选，需终端）。
+SEC EDGAR XBRL（免费）+ Yahoo/腾讯自选股/Stooq 行情（零配置）+ 东方财富 A 股财报（零配置）
++ FRED 宏观 + Wind（可选，需终端）。
 返回数据自带来源，数据过期自动截停。
 
 | 领域 | 数据源 | 需要什么 |
 | --- | --- | --- |
-| 行情 | Yahoo（两个 host），再退到 Stooq | 无 |
+| 行情 | Yahoo（两个 host）→ 腾讯自选股 → Stooq | 无 |
 | 美股财报 | SEC EDGAR XBRL | 一个联系邮箱 |
 | 宏观 | FRED | 免费 key |
 | 中国上市公司 | 东方财富公开接口，再退到 Wind | 无 |

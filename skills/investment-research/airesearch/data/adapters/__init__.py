@@ -47,6 +47,7 @@ def configure(profile: dict = None, db_path=None) -> list:
     profile = profile if profile is not None else load_profile()
 
     from .cn_eastmoney import EastmoneyAdapter
+    from .cn_tencent import TencentAdapter
     from .cn_wind import WindAdapter
     from .macro_fred import FREDAdapter
     from .prices import _YAHOO_HOSTS, StooqAdapter, YahooAdapter
@@ -68,9 +69,13 @@ def configure(profile: dict = None, db_path=None) -> list:
     # The domain with real redundancy, because a price is the number most often
     # wanted on an unconfigured machine and none of these need a key. Order is
     # what was verified working, not what would be nicest to depend on.
+    # Tencent sits ahead of Stooq because Stooq is US-only here and returned
+    # 404 for every symbol tried, while Tencent covers the Chinese listings
+    # nothing else in this chain reaches.
     register(Chain(domain="price", adapters=[
         YahooAdapter(_YAHOO_HOSTS[0]),
         YahooAdapter(_YAHOO_HOSTS[1]),
+        TencentAdapter(),
         StooqAdapter(),
     ]))
     return describe()

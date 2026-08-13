@@ -127,7 +127,7 @@ exactly which setting is missing.
 
 | Domain | Source | Needs |
 | --- | --- | --- |
-| Quotes | Yahoo (two hosts), then Stooq | nothing |
+| Quotes | Yahoo (two hosts), then Tencent, then Stooq | nothing |
 | US financials | SEC EDGAR XBRL company facts | `sec_contact` |
 | Macro | FRED | a free key |
 | Chinese listings | Eastmoney public endpoints, then Wind | nothing |

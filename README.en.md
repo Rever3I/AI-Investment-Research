@@ -125,7 +125,7 @@ that works.
 
 | Domain | Source | Needs |
 | --- | --- | --- |
-| `price` | Yahoo chart, two hosts, then Stooq | nothing |
+| `price` | Yahoo, two hosts, then Tencent, then Stooq | nothing |
 | `us_equity` | SEC EDGAR XBRL company facts | `sec_contact` |
 | `macro` | FRED | `fred_api_key` (free) |
 | `cn_equity` | Eastmoney public endpoints, then Wind | nothing |
@@ -138,7 +138,9 @@ facts = fetch("us_equity", "KO")      # net income, D&A, capex, share count
 ```
 
 Prices work with no configuration at all, which is the case that matters on a
-fresh clone, and so do Chinese listings: `cn_equity` reads Eastmoney's public
+fresh clone, and two of the entries fail independently: Tencent answered
+throughout the hours Eastmoney's quote endpoint was returning 502. Chinese
+listings need no configuration either: `cn_equity` reads Eastmoney's public
 endpoints, unofficial and undocumented in the same way the Yahoo quote endpoint
 is, so the parser fails loudly rather than returning something plausible. Wind
 sits behind it for anyone who has a terminal. That adapter is written to Wind's

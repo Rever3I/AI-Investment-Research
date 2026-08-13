@@ -90,7 +90,7 @@ python -m pytest -q
 
 | Domain | 数据源 | 需要什么 |
 | --- | --- | --- |
-| `price` | Yahoo 行情（两个 host），再退到 Stooq | 无 |
+| `price` | Yahoo（两个 host）→ 腾讯自选股 → Stooq | 无 |
 | `us_equity` | SEC EDGAR XBRL 财报数据 | `sec_contact` |
 | `macro` | FRED | `fred_api_key`（免费） |
 | `cn_equity` | 东方财富公开接口，再退到 Wind | 无 |
@@ -102,7 +102,9 @@ print(status_report(configure()))     # 哪些接好了、哪些能跑
 facts = fetch("us_equity", "KO")      # 净利润、折旧摊销、资本开支、股本
 ```
 
-行情源零配置即可用，这是刚克隆下来时最要紧的情形。A 股同样零配置：`cn_equity` 主源是
+行情源零配置即可用，这是刚克隆下来时最要紧的情形，而且有两条互相独立的免费通路：
+Yahoo 和腾讯自选股，后者在东方财富行情接口连续 502 的那几个小时里一直是通的。
+A 股同样零配置：`cn_equity` 主源是
 东方财富的公开接口，和 Yahoo 行情一样属于非官方、无文档的那一类，所以解析失败时会明确
 报错而不是返回一个看起来合理的数字。Wind 留在它后面作为可选主源，按 Wind 官方文档接口
 写成，但**未经真实终端验证**——WindPy 随付费产品分发，无法另行安装。
