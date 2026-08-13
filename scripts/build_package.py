@@ -37,6 +37,13 @@ EN_REFERENCES = REPO / "docs" / "references-en"
 EXCLUDE_DIRS = {"__pycache__", ".pytest_cache", ".git"}
 EXCLUDE_SUFFIXES = {".pyc", ".pyo"}
 
+# Marketplaces validate uploads by file type and reject the whole archive on
+# one unknown entry. A `.gitkeep` left in a directory that had since filled up
+# with real files failed a SkillHub upload, so the check moved to build time:
+# a rejection here names the file, where a rejection at upload names a path
+# inside a zip nobody has opened.
+ALLOWED_SUFFIXES = {".py", ".md", ".json", ".txt", ".yaml", ".yml", ".toml"}
+
 DEFAULT_NAMES = {"en": "HF-Stock-Analysis-Pro", "zh": "investment-research-zh"}
 
 
@@ -57,7 +64,26 @@ def version() -> str:
 def keep(relative: Path) -> bool:
     if any(part in EXCLUDE_DIRS for part in relative.parts):
         return False
+    # Dotfiles are repository plumbing. None of them mean anything to someone
+    # who installed the skill, and some of them fail the upload.
+    if relative.name.startswith("."):
+        return False
     return relative.suffix not in EXCLUDE_SUFFIXES
+
+
+def check_types(stage: Path) -> None:
+    """Refuse to write an archive a marketplace will reject."""
+    rejected = sorted(
+        str(p.relative_to(stage))
+        for p in stage.rglob("*")
+        if p.is_file() and p.suffix.lower() not in ALLOWED_SUFFIXES
+    )
+    if rejected:
+        listed = "\n  ".join(rejected)
+        raise SystemExit(
+            "these files have a type marketplaces reject; rename or exclude "
+            f"them before publishing:\n  {listed}"
+        )
 
 
 def stage_skill(stage: Path) -> int:
@@ -133,10 +159,13 @@ def main() -> None:
     if args.lang == "en":
         swap_to_english(stage)
 
-    shutil.copy2(REPO / "LICENSE", stage / "LICENSE")
+    # As LICENSE.txt: an extensionless file is the same upload trap, and
+    # GitHub still reads the repository's own LICENSE for its badge.
+    shutil.copy2(REPO / "LICENSE", stage / "LICENSE.txt")
     shutil.copy2(REPO / ("README.en.md" if args.lang == "en" else "README.md"),
                  stage / "README.md")
     write_example_profile(stage, args.lang)
+    check_types(stage)
 
     name = args.name or DEFAULT_NAMES[args.lang]
     out = Path(args.out) / f"{name}-v{version()}.zip"
