@@ -1,5 +1,5 @@
 ---
-name: investment-research
+name: finlo-stock-analysis
 description: >
   五阶段股票研究流水线：发现候选标的、写出可被证伪的投资观点、用股东盈余 DCF 和
   反向 DCF 估值、用 Kelly 公式算仓位、在想卖出时复查当初的判断变了什么。数字来自

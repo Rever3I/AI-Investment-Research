@@ -1,5 +1,5 @@
 ---
-name: investment-research
+name: finlo-stock-analysis
 description: >
   A five-stage equity research pipeline: find candidates, write a falsifiable
   thesis, value it with an owner-earnings DCF and a reverse DCF, size the
