@@ -611,3 +611,45 @@ def test_credentials_from_the_profile_reach_their_adapters():
                               "fred_api_key": "k"})
     ready = {row["domain"] for row in rows if row["available"]}
     assert {"us_equity", "macro"} <= ready
+
+
+# ── the first run must not look broken ────────────────────────────
+
+def test_a_missing_cache_table_is_a_miss_not_a_fault(tmp_path, caplog):
+    """On a fresh install the database exists holding only `fact_log`: the Fact
+    contract creates it, and `market_cache` arrives with the first write. Reading
+    it before then logged a traceback, so every first run opened with a screenful
+    of red over something that is simply a cache miss."""
+    import logging
+    import sqlite3
+
+    from airesearch.data.adapters.http import cache_get
+    from airesearch.factcontract.fact import Fact, now_utc
+    from airesearch.factcontract import store as fact_store
+
+    db = tmp_path / "research.db"
+    fact_store.DB_PATH = db
+    fact_store.record_many([Fact(name="X_pct", value=1.0, unit="pct", freq="daily",
+                                 as_of=now_utc().isoformat(), source="test",
+                                 entity="X")])
+    tables = {r[0] for r in sqlite3.connect(str(db)).execute(
+        "SELECT name FROM sqlite_master WHERE type='table'")}
+    assert "market_cache" not in tables, "the fixture no longer reproduces a first run"
+
+    with caplog.at_level(logging.WARNING):
+        assert cache_get("NVDA", "us_equity", db_path=db) is None
+    assert not caplog.records, f"a cache miss logged: {[r.message for r in caplog.records]}"
+
+
+def test_a_real_cache_failure_is_still_reported(tmp_path, caplog):
+    """The quiet path is only for a missing table. A corrupt database is a fault
+    and has to say so, or the cache silently stops working."""
+    import logging
+
+    from airesearch.data.adapters.http import cache_get
+
+    db = tmp_path / "research.db"
+    db.write_bytes(b"this is not a sqlite file at all, not even close")
+    with caplog.at_level(logging.WARNING):
+        assert cache_get("NVDA", "us_equity", db_path=db) is None
+    assert caplog.records, "a corrupt database was swallowed silently"
