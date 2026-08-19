@@ -1,7 +1,7 @@
 # Stage 2 — Thesis: the written, falsifiable view
 
 
-Takes a `Candidate` from `research-intake` and turns it into a `Thesis`: the
+Takes a `Candidate` from stage 1 and turns it into a `Thesis`: the
 first point in the pipeline where a view gets committed to writing and made
 falsifiable.
 
@@ -20,7 +20,7 @@ rather than dressing up consensus.
 **Falsifiers** — the specific, observable things that would make you wrong. Write
 them so a future reader can check them against reality without re-litigating the
 whole argument: "two consecutive quarters of hyperscaler capex guiding down,"
-not "if the AI cycle turns." `research-sellcheck` reads these later and diffs
+not "if the AI cycle turns." Stage 5 reads these later and diffs
 them against what actually happened, which only works if they name events rather
 than moods.
 
@@ -35,12 +35,12 @@ recent = list_candidates(market="US", limit=10)  # to pick from
 
 Both raise `FileNotFoundError` when nothing has ever been saved — a fresh
 install has no candidates table at all. Catch it and tell the user to run
-`research-intake` first rather than surfacing a traceback.
+stage 1 first rather than surfacing a traceback.
 
 If the user names a ticker with no candidate behind it, the same applies: a
 thesis cannot be saved without a real `candidate_id`. `save_thesis` refuses it
 with a `ValueError` naming the id, and the database's foreign key would refuse
-it too, so that `research-sellcheck` can never resolve a thesis to a candidate
+it too, so that stage 5 can never resolve a thesis to a candidate
 that does not exist.
 
 ## The document
@@ -127,7 +127,7 @@ on-screen commentary.
 **Never translate:** entries in `data_sources` (they are provenance strings such
 as `sec-xbrl:10-K FY2025`, matched literally), and the originating candidate's
 `source_note` — on the thesis path that is the user's own words, and
-`research-sellcheck` diffs against them. Translation is paraphrase, and
+stage 5 diffs against them. Translation is paraphrase, and
 paraphrase destroys the thing being tested.
 
 ## Saving
@@ -152,10 +152,10 @@ row_id = save_thesis(thesis)           # also stamps thesis.id
 ```
 
 Re-researching a name writes a new thesis rather than overwriting the old one.
-That is intentional: the history is what `research-sellcheck` compares against.
+That is intentional: the history is what stage 5 compares against.
 
 ## Finishing
 
-Report the thesis and its row id. Stop there — valuation is `research-valuation`,
-a separate skill the user invokes next. Running it unasked spends their time on
-a number they may not want yet, and a thesis is worth reading on its own.
+Report the thesis and its row id. Stop there. Valuation is stage 3, and the
+user decides when to start it; running it unasked spends their time on a number
+they may not want yet, and a thesis is worth reading on its own.

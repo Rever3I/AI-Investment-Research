@@ -4,9 +4,9 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ai-investment-research"
-version = "1.3.2"
-description = "A portable, layered investment-research pipeline delivered as SKILL.md packages"
+name = "ai-portfolio-manager"
+version = "2.0.0"
+description = "The research work a portfolio manager does, as a portable SKILL.md package"
 license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.10"
@@ -16,10 +16,10 @@ dependencies = []
 test = ["pytest>=7"]
 
 # The library lives inside the skill directory so that one directory is a
-# working install on its own. `investment-research` is not an importable name,
+# working install on its own. `ai-portfolio-manager` is not an importable name,
 # so the package root is the skill folder and the package is `airesearch`.
 [tool.setuptools]
-package-dir = {"" = "skills/investment-research"}
+package-dir = {"" = "skills/ai-portfolio-manager"}
 packages = [
     "airesearch",
     "airesearch.data",

@@ -1,5 +1,5 @@
 ---
-name: finlo-stock-analysis
+name: ai-portfolio-manager
 description: >
   A five-stage equity research pipeline: find candidates, write a falsifiable
   thesis, value it with an owner-earnings DCF and a reverse DCF, size the
@@ -17,19 +17,27 @@ allowed-tools:
   - Bash
 ---
 
-# Investment Research
+# AI Portfolio Manager
 
-Five stages. Each hands the next a validated record rather than prose, so a name
-that arrived from a screen and one that arrived from a macro view are judged by
-the same standard.
+The research work a portfolio manager does, in five stages: find the name, write
+the argument, value it, size it, and check what changed before selling. It does
+not decide for you and it does not place trades.
+
+Delivered as a single SKILL.md package. Not locked to one host, not a hosted
+service: install it into any tool that reads SKILL.md, point it at your own
+market and data access, and run it yourself.
+
+Each stage hands the next a validated record rather than prose, so a name that
+arrived from a screen and one that arrived from a macro view are judged by the
+same standard.
 
 | Stage | Does | Produces | Guide |
 | --- | --- | --- | --- |
-| 1 Intake | finds candidates, two entry paths | `Candidate` | `references/intake.md` |
-| 2 Thesis | the written, falsifiable view | `Thesis` | `references/thesis.md` |
-| 3 Valuation | DCF, reverse DCF, interactive page, optional dissent pass | `Valuation`, `Verdict` | `references/valuation.md` |
-| 4 Portfolio | position weight from scenario probabilities | `Portfolio` | `references/portfolio.md` |
-| 5 Sellcheck | what changed since the thesis was written | `Sellcheck` | `references/sellcheck.md` |
+| Intake | screens on your own saved criteria, or reasons from a view you hold to the names that express it | `Candidate` | `references/intake.md` |
+| Thesis | the written, falsifiable view: business, management, competitors, TAM, 8-12 risks, and what would prove it wrong | `Thesis` | `references/thesis.md` |
+| Valuation | owner-earnings DCF, reverse DCF, a self-contained interactive page, optional dissent pass | `Valuation`, `Verdict` | `references/valuation.md` |
+| Portfolio | position weight from your scenario probabilities, half-Kelly by default | `Portfolio` | `references/portfolio.md` |
+| Sellcheck | diffs today against the thesis you wrote, so a price move is not mistaken for a broken argument | `Sellcheck` | `references/sellcheck.md` |
 
 **Read the guide for the stage you are on, and only that one.** Each is a few
 pages and contains the exact calls, the failure modes, and the judgment the
@@ -63,7 +71,7 @@ the first time it is called and returns the path; if the file is already there
 it is returned untouched. `load_profile()` shows what is in effect.
 
 Where that path is depends on the install: `config/research-profile.json` in a
-source checkout, `~/.ai-investment-research/research-profile.json` for a
+source checkout, `~/.ai-portfolio-manager/research-profile.json` for a
 standalone skill. **Always report the path `ensure_profile()` returns rather
 than composing one** — settings written to the other location are simply never
 read, and the run then fails on a 403 that looks like a network problem.
@@ -72,11 +80,25 @@ read, and the run then fails on a 403 that looks like a network problem.
 If a stage needs a source that is not configured, say which setting is missing,
 and print `profile_path()` so the user knows where to put it.
 
+Four domains. The name is the first argument to `fetch(domain, key)`:
+
+| Domain | Source | Needs |
+| --- | --- | --- |
+| `price` | Yahoo (two hosts), then Tencent, then Stooq | nothing |
+| `us_equity` | SEC EDGAR XBRL company facts | `sec_contact` |
+| `macro` | FRED | `fred_api_key` (free) |
+| `cn_equity` | Eastmoney public endpoints, then Wind | nothing |
+
+Each domain is a chain: when the first source fails the next is tried and the
+fallback is logged.
+
 ## Three rules that hold across every stage
 
-**Numbers come from tools, never from recall.** Every figure passes the Fact
-contract, which hard-stops on stale data and warns on unit or magnitude
-anomalies:
+**Numbers come from tools, never from recall.** Every figure that reaches an
+output passes the Fact contract in `airesearch/factcontract/`. Two things hard-
+stop it: data past its staleness limit, and one company's money arriving in two
+currencies. Unit and magnitude anomalies warn. A non-dollar listing is not
+refused — a yuan price against yuan financials values fine:
 
 ```python
 from airesearch.data.adapters import fetch

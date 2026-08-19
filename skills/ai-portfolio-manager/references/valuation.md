@@ -7,7 +7,7 @@ rather than accept a number.
 
 ## The arithmetic is not yours to do
 
-Every figure comes from `skills/investment-research/airesearch/valuation/`, which computes in `Decimal`
+Every figure comes from `airesearch/valuation/`, which computes in `Decimal`
 and refuses inputs that produce meaningless results. Do not do this in your
 head, and do not check its answer against your own — if the two disagree the
 module is right, because it is the thing that will still be right in a year.
@@ -34,7 +34,7 @@ thesis = get_thesis(thesis_id)
 ```
 
 Raises `FileNotFoundError` when nothing has been researched yet. Catch it and
-say to run `research-thesis` first, rather than surfacing a traceback. A
+say to run stage 2 first, rather than surfacing a traceback. A
 valuation with no thesis behind it is a price target with no argument attached,
 so `save_valuation` refuses one.
 
@@ -78,7 +78,7 @@ verify([
 ## Scenarios
 
 Three is usually right: bull, base, bear. What matters is that the
-**probabilities are yours and are stated**, because `research-portfolio` reads
+**probabilities are yours and are stated**, because stage 4 reads
 them directly as position-sizing inputs. Probabilities that were never really
 thought about produce a position size that looks quantitative and is not.
 
@@ -172,7 +172,7 @@ reader sees.
 **Translate:** your commentary, and each scenario's `assumptions` string.
 
 **Never translate:** scenario `name` values (`bull` / `base` / `bear` — the
-report styles rows by matching them, and `research-portfolio` reads them), and
+report styles rows by matching them, and stage 4 reads them), and
 `discount_rate_source` if it names an instrument, since that is provenance.
 
 ## Saving
@@ -279,7 +279,7 @@ the price, then the scenario table with its terminal shares. Say where the page
 is. If the dissent pass ran, lead its section with what was **not** resolved
 rather than with the verdict.
 
-Stop there — sizing is `research-portfolio`, and it does not run unasked.
+Stop there. Sizing is stage 4, and it does not run unasked.
 
 Do not tell the user to buy or sell. Present what the price assumes and what you
 believe; the decision is theirs.

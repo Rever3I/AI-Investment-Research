@@ -118,6 +118,6 @@ def test_calibration_memory_table_records_draft_vs_actual(tmp_path):
 
 
 def test_default_db_path_resolves_inside_repo():
-    # db_init.py lives at <repo>/skills/investment-research/airesearch/data/db_init.py
+    # db_init.py lives at <repo>/skills/ai-portfolio-manager/airesearch/data/db_init.py
     repo_root = Path(__file__).resolve().parent.parent
     assert DEFAULT_DB_PATH == repo_root / "db" / "research.db"

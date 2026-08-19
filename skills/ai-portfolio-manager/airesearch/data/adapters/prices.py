@@ -114,7 +114,7 @@ class YahooAdapter(Adapter):
         symbol = key.strip().upper()
         payload = get_json(
             _YAHOO_URL.format(host=self.host, symbol=urllib.parse.quote(symbol)),
-            headers={"User-Agent": "ai-investment-research"},
+            headers={"User-Agent": "ai-portfolio-manager"},
         )
         try:
             result = payload["chart"]["result"][0]

@@ -1,18 +1,18 @@
 #!/usr/bin/env python
 """Build a distributable skill package, in either language.
 
-There are two front ends to this repo now. SKILL.md and the five stage guides
-ship in Chinese, because a marketplace renders SKILL.md as the listing overview
-and the Chinese listing was showing an English page. The English text is kept
-under docs/ and swapped back in for the English package, so neither audience
-gets the other one's file.
+There are two front ends to this repo. SKILL.md and the five stage guides ship
+in English, because a marketplace renders SKILL.md as its listing overview and
+the repo is promoted to an English audience. The Chinese text is kept under
+docs/ and swapped in for the Chinese package, so neither audience gets the
+other one's file.
 
 Zipping the skill directory by hand is what this replaces: it silently picks up
 whichever language happens to be checked in, plus every .pyc compiled for the
 builder's own Python.
 
-    python scripts/build_package.py --lang zh --out "D:/downloads"
     python scripts/build_package.py --lang en --out "D:/downloads"
+    python scripts/build_package.py --lang zh --out "D:/downloads"
 
 SKILL.md sits at the archive root, so extracting gives a working skill folder
 whichever shape the importer expects.
@@ -27,12 +27,12 @@ import zipfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-SKILL = REPO / "skills" / "investment-research"
+SKILL = REPO / "skills" / "ai-portfolio-manager"
 
-# The English originals, kept beside the repo rather than inside the skill so
-# nothing scanning the skill folder for *.md picks up two SKILL files.
-EN_SKILL = REPO / "docs" / "SKILL.en.md"
-EN_REFERENCES = REPO / "docs" / "references-en"
+# The Chinese versions, kept beside the skill rather than inside it so nothing
+# scanning the skill folder for *.md picks up two SKILL files.
+ZH_SKILL = REPO / "docs" / "SKILL.zh-CN.md"
+ZH_REFERENCES = REPO / "docs" / "references-zh"
 
 EXCLUDE_DIRS = {"__pycache__", ".pytest_cache", ".git"}
 EXCLUDE_SUFFIXES = {".pyc", ".pyo"}
@@ -44,7 +44,7 @@ EXCLUDE_SUFFIXES = {".pyc", ".pyo"}
 # inside a zip nobody has opened.
 ALLOWED_SUFFIXES = {".py", ".md", ".json", ".txt", ".yaml", ".yml", ".toml"}
 
-DEFAULT_NAMES = {"en": "HF-Stock-Analysis-Pro", "zh": "investment-research-zh"}
+DEFAULT_NAMES = {"en": "ai-portfolio-manager", "zh": "ai-portfolio-manager-zh"}
 
 
 def version() -> str:
@@ -102,26 +102,26 @@ def stage_skill(stage: Path) -> int:
     return copied
 
 
-def swap_to_english(stage: Path) -> None:
-    missing = [p for p in (EN_SKILL, EN_REFERENCES) if not p.exists()]
+def swap_to_chinese(stage: Path) -> None:
+    missing = [p for p in (ZH_SKILL, ZH_REFERENCES) if not p.exists()]
     if missing:
         raise SystemExit(
-            "cannot build the English package, these are missing: "
+            "cannot build the Chinese package, these are missing: "
             + ", ".join(str(p.relative_to(REPO)) for p in missing)
         )
-    shutil.copy2(EN_SKILL, stage / "SKILL.md")
-    for guide in EN_REFERENCES.glob("*.md"):
+    shutil.copy2(ZH_SKILL, stage / "SKILL.md")
+    for guide in ZH_REFERENCES.glob("*.md"):
         shutil.copy2(guide, stage / "references" / guide.name)
 
-    # A guide the Chinese side has and the English side does not would ship as
-    # a Chinese file inside the English package, which is the exact mixing this
-    # script exists to prevent.
-    zh_guides = {p.name for p in (SKILL / "references").glob("*.md")}
-    en_guides = {p.name for p in EN_REFERENCES.glob("*.md")}
-    if zh_guides != en_guides:
+    # A guide the English side has and the Chinese side does not would ship as
+    # an English file inside the Chinese package, which is the exact mixing
+    # this script exists to prevent.
+    en_guides = {p.name for p in (SKILL / "references").glob("*.md")}
+    zh_guides = {p.name for p in ZH_REFERENCES.glob("*.md")}
+    if en_guides != zh_guides:
         raise SystemExit(
-            f"the two guide sets differ: only in zh {sorted(zh_guides - en_guides)}, "
-            f"only in en {sorted(en_guides - zh_guides)}"
+            f"the two guide sets differ: only in en {sorted(en_guides - zh_guides)}, "
+            f"only in zh {sorted(zh_guides - en_guides)}"
         )
 
 
@@ -144,7 +144,7 @@ def write_example_profile(stage: Path, lang: str) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--lang", choices=("zh", "en"), default="zh")
+    parser.add_argument("--lang", choices=("en", "zh"), default="en")
     parser.add_argument("--out", default=str(REPO / "dist"),
                         help="directory to write the .zip into")
     parser.add_argument("--name", default=None, help="archive base name")
@@ -156,13 +156,13 @@ def main() -> None:
     stage.mkdir(parents=True)
 
     copied = stage_skill(stage)
-    if args.lang == "en":
-        swap_to_english(stage)
+    if args.lang == "zh":
+        swap_to_chinese(stage)
 
     # As LICENSE.txt: an extensionless file is the same upload trap, and
     # GitHub still reads the repository's own LICENSE for its badge.
     shutil.copy2(REPO / "LICENSE", stage / "LICENSE.txt")
-    shutil.copy2(REPO / ("README.en.md" if args.lang == "en" else "README.md"),
+    shutil.copy2(REPO / ("README.zh-CN.md" if args.lang == "zh" else "README.md"),
                  stage / "README.md")
     write_example_profile(stage, args.lang)
     check_types(stage)

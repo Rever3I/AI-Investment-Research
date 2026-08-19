@@ -16,7 +16,7 @@ import pytest
 
 from airesearch.data.schema import DEBATE_MODES, DIFF_VERDICTS, ENTRY_PATHS, SIZING_METHODS
 
-_GUIDES = Path(__file__).resolve().parent.parent / "skills" / "investment-research" / "references"
+_GUIDES = Path(__file__).resolve().parent.parent / "skills" / "ai-portfolio-manager" / "references"
 
 # Each guide must still carry the literal tokens the pipeline matches on.
 _REQUIRED = {

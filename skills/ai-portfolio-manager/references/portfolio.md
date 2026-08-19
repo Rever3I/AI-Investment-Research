@@ -1,8 +1,8 @@
 # Stage 4 — Position sizing
 
 
-Converts the scenario probabilities from `research-valuation` into a fraction of
-capital. The arithmetic is in `skills/investment-research/airesearch/valuation/sizing.py` and is not yours
+Converts the scenario probabilities from stage 3 into a fraction of
+capital. The arithmetic is in `airesearch/valuation/sizing.py` and is not yours
 to reproduce.
 
 ## The honest caveat, stated up front
@@ -36,7 +36,7 @@ result = size_position(
 ```
 
 `get_valuation` raises `FileNotFoundError` on a fresh install; catch it and say
-to run `research-valuation` first.
+to run stage 3 first.
 
 The market price passes the Fact contract before it gets here — the whole
 calculation is a ratio against it, so a stale price silently scales the answer.

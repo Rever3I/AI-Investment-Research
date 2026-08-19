@@ -21,17 +21,16 @@ from airesearch import config
 from airesearch.data.schema import SIZING_METHODS
 
 _REPO = Path(__file__).resolve().parent.parent
-# README.md is the Chinese one: it is what GitHub shows on the landing page and
-# what marketplace importers read, and the audience that installs this reads
-# Chinese first. English lives beside it.
+# README.md is the English one: it is the repo's landing page, and the
+# audience the project is promoted to reads English. Chinese lives beside it.
 _READMES = {
-    "en": _REPO / "README.en.md",
-    "zh-CN": _REPO / "README.md",
+    "en": _REPO / "README.md",
+    "zh-CN": _REPO / "README.zh-CN.md",
 }
 # The stage guides on disk, so adding or merging one cannot leave the READMEs
 # describing a shape the repo no longer has.
 _LAYERS = tuple(sorted(
-    p.stem for p in (_REPO / "skills" / "investment-research" / "references").glob("*.md")
+    p.stem for p in (_REPO / "skills" / "ai-portfolio-manager" / "references").glob("*.md")
 ))
 
 
@@ -86,7 +85,7 @@ def test_every_layer_is_listed(lang, path):
 
 @pytest.mark.parametrize("lang,path", sorted(_READMES.items()))
 def test_each_readme_links_to_the_other(lang, path):
-    other = "README.md" if lang == "en" else "README.en.md"
+    other = "README.zh-CN.md" if lang == "en" else "README.md"
     assert other in _text(path), f"{path.name} has no link to {other}"
 
 
@@ -102,6 +101,6 @@ def test_the_clone_url_is_identical_in_both(lang, path):
     """Two casings of the same URL is two canonical repos to anything that
     compares the string."""
     urls = set(re.findall(r"https://github\.com/\S+?\.git", _text(path)))
-    assert urls == {"https://github.com/Rever3I/ai-investment-research.git"}, (
+    assert urls == {"https://github.com/Rever3I/ai-portfolio-manager.git"}, (
         f"{path.name} clone URL(s) {urls} differ from the canonical one"
     )

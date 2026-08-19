@@ -1,5 +1,5 @@
 ---
-name: finlo-stock-analysis
+name: ai-portfolio-manager
 description: >
   五阶段股票研究流水线：发现候选标的、写出可被证伪的投资观点、用股东盈余 DCF 和
   反向 DCF 估值、用 Kelly 公式算仓位、在想卖出时复查当初的判断变了什么。数字来自
@@ -62,7 +62,7 @@ print(status_report(configure()))
 并返回路径，已存在则原样返回，不覆盖。要看当前生效的内容用 `load_profile()`。
 
 路径取决于安装方式：源码仓库里是 `config/research-profile.json`，作为独立 skill 单独
-安装时是 `~/.ai-investment-research/research-profile.json`。**永远报
+安装时是 `~/.ai-portfolio-manager/research-profile.json`。**永远报
 `ensure_profile()` 返回的那个路径，不要自己拼一个**——把设置写到两者中错误的那一个，
 就是永远不会被读取，运行随后会失败在一个看起来像网络故障的 403 上。
 `AI_RESEARCH_PROFILE` 环境变量覆盖以上两者。

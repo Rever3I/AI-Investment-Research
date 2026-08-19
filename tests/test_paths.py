@@ -59,6 +59,11 @@ def test_installed_package_falls_back_to_a_user_directory(kind, monkeypatch, tmp
     site_packages = tmp_path / "site-packages"
     site_packages.mkdir()  # no pyproject.toml, so this is an install not a checkout
     monkeypatch.setattr(paths, "_CHECKOUT_ROOT", site_packages)
+    # Pin both user directories: the developer's real home may hold one from an
+    # install under the project's previous name, and the fallback would then
+    # resolve somewhere this test did not choose.
+    monkeypatch.setattr(paths, "_USER_DIR", tmp_path / ".ai-portfolio-manager")
+    monkeypatch.setattr(paths, "_LEGACY_USER_DIR", tmp_path / ".ai-investment-research")
 
     resolved = resolve()
     assert resolved == paths._USER_DIR / relative.name
@@ -78,3 +83,51 @@ def test_the_two_resolvers_agree_on_the_root():
     repo_root = Path(__file__).resolve().parent.parent
     assert paths.default_db_path().parent.parent == repo_root
     assert paths.default_profile_path().parent.parent == repo_root
+
+
+# ── the rename must not strand an existing install ────────────────
+
+def test_the_directory_from_the_old_name_is_used_when_it_is_the_one_in_use(
+        monkeypatch, tmp_path):
+    """Renaming the project moves the per-user directory. Anyone who installed
+    under the old name has their profile and database there, and switching
+    without looking would bring the pipeline back up on defaults with an empty
+    history and no sign anything was lost."""
+    from airesearch import paths
+
+    legacy = tmp_path / ".ai-investment-research"
+    legacy.mkdir()
+    monkeypatch.setattr(paths, "_USER_DIR", tmp_path / ".ai-portfolio-manager")
+    monkeypatch.setattr(paths, "_LEGACY_USER_DIR", legacy)
+    monkeypatch.delenv(paths.DB_ENV_VAR, raising=False)
+    monkeypatch.setattr(paths, "_is_source_checkout", lambda root: False)
+
+    assert paths.default_db_path().parent == legacy
+    assert paths.default_profile_path().parent == legacy
+
+
+def test_the_new_directory_wins_once_it_exists(monkeypatch, tmp_path):
+    """Both present means the user has moved on; the old one is leftovers."""
+    from airesearch import paths
+
+    legacy = tmp_path / ".ai-investment-research"
+    current = tmp_path / ".ai-portfolio-manager"
+    legacy.mkdir()
+    current.mkdir()
+    monkeypatch.setattr(paths, "_USER_DIR", current)
+    monkeypatch.setattr(paths, "_LEGACY_USER_DIR", legacy)
+    monkeypatch.delenv(paths.DB_ENV_VAR, raising=False)
+    monkeypatch.setattr(paths, "_is_source_checkout", lambda root: False)
+
+    assert paths.default_db_path().parent == current
+
+
+def test_a_fresh_install_uses_the_current_name(monkeypatch, tmp_path):
+    from airesearch import paths
+
+    monkeypatch.setattr(paths, "_USER_DIR", tmp_path / ".ai-portfolio-manager")
+    monkeypatch.setattr(paths, "_LEGACY_USER_DIR", tmp_path / ".ai-investment-research")
+    monkeypatch.delenv(paths.DB_ENV_VAR, raising=False)
+    monkeypatch.setattr(paths, "_is_source_checkout", lambda root: False)
+
+    assert paths.default_db_path().parent.name == ".ai-portfolio-manager"

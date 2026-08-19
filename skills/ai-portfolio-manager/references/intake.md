@@ -92,7 +92,7 @@ deleted would edit the past.
 ## Producing the Candidate record
 
 Build one `Candidate` per name and persist it. The dataclass in
-`skills/investment-research/airesearch/data/schema.py` is the contract — it validates on construction, so
+`airesearch/data/schema.py` is the contract — it validates on construction, so
 a malformed record fails here rather than three layers downstream.
 
 ```python
@@ -119,12 +119,12 @@ Three fields carry more weight than they look:
 - `source_note` on the thesis path holds the user's thesis text verbatim. Later
   layers compare against it, so paraphrasing it loses the thing being tested.
 - `id` is None until you save. After `save_candidate` it holds the row id, which
-  is what `research-thesis` needs to attach its work to this candidate.
+  is what stage 2 needs to attach its work to this candidate.
 
 ## Numbers
 
 Any figure that reaches the user passes through the Fact contract in
-`skills/investment-research/airesearch/factcontract/` first. It hard-stops on stale data and warns on
+`airesearch/factcontract/` first. It hard-stops on stale data and warns on
 implausible units or magnitudes.
 
 ```python
@@ -161,12 +161,11 @@ later when nothing matches.
 | `market` | Adapters key off it. `"US"` stays `"US"`, never `"美股"` — nothing validates this field, so a translated value persists cleanly and then matches no adapter |
 | `entry_path` | A fixed value: `"screen"` or `"thesis"`, in every language |
 | `profile_used` | It names a file |
-| `source_note` | On the thesis path this is the user's own words. `research-sellcheck` diffs against them later, and translation is paraphrase — it destroys the thing being tested. Keep it in whatever language they wrote it, regardless of `output_language` |
+| `source_note` | On the thesis path this is the user's own words. stage 5 diffs against them later, and translation is paraphrase — it destroys the thing being tested. Keep it in whatever language they wrote it, regardless of `output_language` |
 
 Present the candidates with their one-line rationale, and say which entry path
 produced them — for screen-first, name the profile used, or say plainly that
 none was configured and this was a general search.
 
-Stop there. Deep research is `research-thesis`, a separate skill the user
-invokes next; running it unasked spends their time and tokens on names they may
-not want.
+Stop there. Deep research is stage 2, and the user decides when to start it;
+running it unasked spends their time and tokens on names they may not want.
