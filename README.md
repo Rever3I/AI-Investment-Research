@@ -9,28 +9,61 @@ the pipeline yourself.
 
 ## A real run
 
-Coca-Cola, figures pulled live from SEC EDGAR:
+NVIDIA, 19 August 2026. Financials from SEC EDGAR, quote from Yahoo, nothing
+configured but a contact email.
 
 ```
-Owner earnings   $12.0B      net income + D&A - capex, FY2025 10-K
-Shares           4.31B       CommonStockSharesOutstanding
-Price            $86.84      Yahoo, verified fresh
+FY2026 10-K, period ending 2026-01-25
+  Net income                 $120.067B    us-gaap:NetIncomeLoss
+  D&A                          $2.843B    us-gaap:DepreciationDepletionAndAmortization
+  Capital expenditure          $6.042B    us-gaap:PaymentsToAcquireProductiveAssets
+  Shares outstanding           24.200B    us-gaap:EntityCommonStockSharesOutstanding
 
-Reverse DCF      19.7%       the growth this price already assumes,
-                             at a 9.2% discount rate and 2.6% terminal growth
+  Owner earnings             $116.868B    = $4.83 a share
+  Price                        $219.87    live print, 16:23 UTC
 
-Scenarios        bull $54.24   base $47.96   bear $40.61
-Half-Kelly       0.00%       no edge at this price
+Reverse DCF                     27.4%     the growth this price already assumes,
+                                          at a 9.2%* discount rate and 3% terminal
 ```
 
-Kweichow Moutai, from Eastmoney, with no key configured: owner earnings
-CNY 83.3bn, CNY 66.6 a share, and a CNY 1,343 quote implying 6.8% a year for a
-decade.
+Two tags were rejected during that fetch and the log said so: a capital
+expenditure figure from **2012** and a D&A figure from **2021**, both filed under
+tags NVIDIA has since stopped using. Taking either would have produced an
+ordinary-looking number from a decade ago. This is the NVIDIA row of the table
+below, happening in the run that produced the table.
 
-Read the reverse DCF first. It turns "is this cheap" into a question you can
-actually answer: is a soft drinks company going to compound owner earnings at
-19.7% a year for ten years? The scenario values follow from your growth
-assumptions, not from the tool's.
+Then your own scenarios. These growth rates are assumptions, not output:
+
+```
+            growth    price target    terminal share
+  bull       30%        $243.04            65%
+  base       20%        $165.46            62%
+  bear       10%        $110.83            59%
+
+  Probability-weighted value   $171.20
+  Price                        $219.87
+  Half-Kelly                    0.00%     expected return -22.1%
+```
+
+Three things worth reading off that:
+
+**The reverse DCF is the line to start with.** It turns "is NVIDIA expensive"
+into a question you can actually answer: is this company going to compound
+owner earnings at 27.4% a year for ten years? That is a judgement you can make.
+A price target is not.
+
+**Terminal share around 62% is a warning label.** Nearly two-thirds of every one
+of those valuations sits in the perpetuity assumption rather than in the ten
+years being modelled. That is a statement about the discount rate as much as
+about NVIDIA, and you should see it before you trust the number.
+
+**Half-Kelly returns zero on the most popular stock in the world.** Even with a
+20% base case and a 30% bull case, the probability-weighted value lands below
+the price, so expected return is negative and the arithmetic declines the bet.
+It is not refusing to answer. It is answering.
+
+\* the discount rate has no default. It has to be supplied with a source, which
+is stored on the record so the valuation can be re-checked later.
 
 ## Why this one
 

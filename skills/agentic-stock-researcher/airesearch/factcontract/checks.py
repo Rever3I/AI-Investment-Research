@@ -165,10 +165,15 @@ def check_freq_align(facts):
     from one quarter divided by a denominator taken from the trailing twelve
     months. Facts with no group are exempt, because the caller declares the
     relationship rather than the checker guessing at it.
+
+    `point` is exempt too. It means a value with no natural period — a share
+    count, a strike — and every owner-earnings group holds one alongside annual
+    flows. Comparing them made the warning fire on every single US fetch, and a
+    warning that always fires is one nobody reads by the time it matters.
     """
     groups = defaultdict(list)
     for f in facts:
-        if f.group:
+        if f.group and f.freq != "point":
             groups[f.group].append(f)
 
     issues = []

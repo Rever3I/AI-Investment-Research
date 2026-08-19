@@ -208,3 +208,28 @@ def test_a_timestamp_hours_ahead_is_still_refused():
     wrong_zone = _fresh(as_of=(now_utc() + timedelta(hours=8)).isoformat())
     with pytest.raises(FactCheckError):
         verify([wrong_zone], record=False)
+
+
+def test_a_point_value_does_not_trip_the_frequency_check():
+    """A share count has no period, and every owner-earnings group holds one
+    beside annual flows. Comparing them fired this warning on every US fetch,
+    and a warning that always fires is one nobody reads by the time it matters."""
+    income = _fresh(name="NI", value=1.2e11, unit="usd", freq="annual",
+                    entity="NVDA", group="owner_earnings")
+    shares = _fresh(name="Shares", value=2.4e10, unit="shares", freq="point",
+                    entity="NVDA", group="owner_earnings")
+    report = verify([income, shares], record=False)
+    assert not [w for w in report["warnings"] if w["check"] == "freq_align"]
+
+
+def test_a_real_frequency_mismatch_still_warns():
+    """The check exists for a quarterly numerator over a TTM denominator."""
+    a = _fresh(name="NI", value=100, unit="usd", freq="quarterly",
+               entity="X", group="oe")
+    b = _fresh(name="DA", value=10, unit="usd", freq="quarterly",
+               entity="X", group="oe")
+    c = _fresh(name="Capex", value=5, unit="usd", freq="ttm",
+               entity="X", group="oe")
+    report = verify([a, b, c], record=False)
+    assert any(w["check"] == "freq_align" and w["fact"] == "Capex"
+               for w in report["warnings"])

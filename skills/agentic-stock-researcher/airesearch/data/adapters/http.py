@@ -97,6 +97,15 @@ def cache_get(key: str, domain: str, db_path: Path = None):
                 "WHERE key = ? AND domain = ? ORDER BY as_of DESC, id DESC LIMIT 1",
                 (key, domain),
             ).fetchone()
+    except sqlite3.OperationalError as exc:
+        # A fresh install has the file but not this table: the Fact contract
+        # creates the database holding only fact_log. That is a cache miss, not
+        # a fault, and reporting it with a traceback made every first run open
+        # with a screenful of red.
+        if "no such table" in str(exc):
+            return None
+        _log.warning("Could not read the market cache at %s", path, exc_info=True)
+        return None
     except sqlite3.Error:
         _log.warning("Could not read the market cache at %s", path, exc_info=True)
         return None

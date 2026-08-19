@@ -88,8 +88,10 @@ number that means nothing.
   two negatives in a ratio.
 - **One company in two currencies.** A yuan price against dollar financials is
   a valuation wrong by the exchange rate, and every digit of it looks ordinary.
-  That combination hard-stops. A non-dollar listing on its own does not: yuan
-  price against yuan financials is a correct valuation, and so is Hong Kong.
+  That combination hard-stops. A non-dollar listing on its own does not: a
+  yuan price against yuan financials is a correct valuation. Hong Kong quotes
+  are read and labelled HKD, but there is no filings source for them, so a
+  Hong Kong listing gets a price and not a valuation.
 - **Listings quoted in a subunit.** London quotes in pence, so Shell comes back
   as 3356 against a real price near GBP 45. The currency label is right and only
   the unit is wrong, which is why no downstream check can see it.
