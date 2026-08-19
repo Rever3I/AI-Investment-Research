@@ -7,6 +7,91 @@ package — not locked to Claude Code, not a hosted service. Install it into any
 SKILL.md-compatible AI host, configure your own market and data access, and run
 the pipeline yourself.
 
+## A real run
+
+Coca-Cola, figures pulled live from SEC EDGAR:
+
+```
+Owner earnings   $12.0B      net income + D&A - capex, FY2025 10-K
+Shares           4.31B       CommonStockSharesOutstanding
+Price            $86.84      Yahoo, verified fresh
+
+Reverse DCF      19.7%       the growth this price already assumes,
+                             at a 9.2% discount rate and 2.6% terminal growth
+
+Scenarios        bull $54.24   base $47.96   bear $40.61
+Half-Kelly       0.00%       no edge at this price
+```
+
+Kweichow Moutai, from Eastmoney, with no key configured: owner earnings
+CNY 83.3bn, CNY 66.6 a share, and a CNY 1,343 quote implying 6.8% a year for a
+decade.
+
+Read the reverse DCF first. It turns "is this cheap" into a question you can
+actually answer: is a soft drinks company going to compound owner earnings at
+19.7% a year for ten years? The scenario values follow from your growth
+assumptions, not from the tool's.
+
+## Why this one
+
+Four things go wrong with LLM stock tools. They are the complaints sitting in
+the issue trackers of the popular repos in this space, and each has a specific
+answer here.
+
+**The same run reports different fundamentals in different places.** One agent's
+D/E disagrees with another's, in a single run, on one company. Here a figure is
+fetched once and declared as a `Fact` carrying its source, unit and as-of date,
+and the figures feeding one calculation share a `group`, so a quarterly
+numerator over a trailing-twelve-month denominator is caught instead of
+averaged over.
+
+**Rerunning the same inputs gives a different answer.** Same ticker, same date,
+same model, new rating. Nothing here asks a model to do arithmetic: the DCF, the
+reverse DCF and the Kelly solver are deterministic `Decimal` code, and every
+record is appended to SQLite rather than overwritten, so two runs are comparable
+and a changed answer has a cause you can point at.
+
+**Setup is a project in itself.** Conda environments, a data-vendor key, an LLM
+key, a `.env` copied from a wiki. This has no pip dependencies at all — Python
+3.10 and the standard library. Quotes and Chinese filings need no key of any
+kind; US filings need a contact email because the SEC requires one.
+
+**The data is wrong in ways that look completely normal.** This is the one
+nobody goes looking for, and it is where most of the work went. Reading XBRL and
+free endpoints naively produces figures that pass every sanity check and are
+still wrong. Each of these was found against live filings and is now blocked by
+a rule:
+
+| Company | Naive result | Actual | Cause |
+| --- | --- | --- | --- |
+| Simon Property | 1.30B shares | 324M | Weighted-average counts are filed as period entries, so four quarters got summed |
+| McDonald's | 716 shares | 708M | The count is filed in millions |
+| Starbucks | D&A $362M | $1.77B | A fresher single quarter beat the annual figure, and the company then showed no owner earnings at all |
+| Shell (London) | $3,356 | ~$45 | London quotes in pence, and the price was labelled dollars |
+| NVIDIA | Capex from 2020 | Current | The tag NVIDIA used until 2020 still won over the one it uses now |
+| Kweichow Moutai | D&A CNY 366M | CNY 4.15B | Depreciation is split across six fields and companies file different subsets |
+
+A summed share count is still a plausible share count. A quarterly depreciation
+figure is still a plausible depreciation figure. None of these fails a sanity
+check, so each needed a rule and a regression test rather than a warning.
+
+## What it refuses to do
+
+Refusing is a feature. Each of these would otherwise produce a confident number
+that means nothing.
+
+- **Banks, insurers and most REITs.** Owner earnings is net income plus
+  depreciation less capex, and they often have no capex line. A missing term
+  reads as zero and flatters exactly the businesses where capital matters most.
+- **Loss-making companies.** The arithmetic returns a negative price target with
+  an ordinary-looking terminal share hiding two negatives in a ratio.
+- **One company in two currencies.** A yuan price against dollar financials is
+  wrong by an exchange rate and every digit of it looks fine.
+- **Listings quoted in a subunit.** London quotes in pence; the currency label
+  is right and only the unit is wrong, which is why no later check can see it.
+- **A position with no edge.** When expected return is not positive at the
+  current price, Kelly sizes at zero. That is the arithmetic declining the bet.
+
 ## What it does
 
 One skill, five stages. Each hands the next a validated record rather than
