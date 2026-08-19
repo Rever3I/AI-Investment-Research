@@ -54,12 +54,19 @@ The library lives beside this file. Put the skill directory on the path once:
 import sys
 sys.path.insert(0, "<this skill's directory>")
 
-from airesearch.config import ensure_profile
-from airesearch.data.adapters import configure, status_report
-
-print(ensure_profile())                 # creates the settings file on first run
-print(status_report(configure()))
+from airesearch.setup_guide import guide
+print(guide())
 ```
+
+That one call is the whole first run. It creates the settings file if it is not
+there, names its path, fetches something real from every source that can answer,
+and for anything missing prints the exact key, the exact file and where the
+value comes from. Run it again after the user edits the file: a key that is
+present and wrong looks identical to one that is right until something is
+actually fetched, and only this proves which it was.
+
+Show the user its output rather than summarising it. The paths in it are the
+thing they need.
 
 That prints which data sources can run. Prices work with no configuration at
 all. US filings need `sec_contact` (a name and email; SEC returns 403 without

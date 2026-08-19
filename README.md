@@ -169,6 +169,20 @@ The skill directory carries its own library, so copying it alone is enough. If
 your host does not put the skill directory on `sys.path`, SKILL.md shows the one
 line that does.
 
+Then run the setup guide once. It creates the settings file, names its path,
+fetches something real from every source that can answer, and prints the exact
+key and file for anything missing:
+
+```python
+from airesearch.setup_guide import guide
+print(guide())
+```
+
+Quotes and Chinese filings answer immediately with nothing configured. US
+filings need a contact email because the SEC requires one. Run it again after
+editing: a key that is present and wrong looks identical to one that is right
+until something is fetched.
+
 Records land in `db/research.db`, created on first write. Set `AI_RESEARCH_DB`
 to put it somewhere else.
 

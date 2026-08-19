@@ -135,6 +135,17 @@ pip install -e .
 
 skill 目录自带库，单独复制它就够用。如果你的 AI 工具不会把 skill 目录加进 `sys.path`，SKILL.md 里给了那一行代码。
 
+然后跑一次引导。它会建出配置文件、打印路径、从每个能应答的数据源真的取一次数，并对
+缺的项打印出确切的键和文件。
+
+```python
+from airesearch.setup_guide import guide
+print(guide())
+```
+
+行情和 A 股财报零配置直接应答。美股财报需要一个联系邮箱，因为 SEC 强制要求。改完配置
+再跑一次——填错的 key 和填对的长得一样，取到数才分得出来。
+
 记录写入 `db/research.db`，首次写入时自动创建。想换位置就设 `AI_RESEARCH_DB` 环境变量。
 
 ## 配置

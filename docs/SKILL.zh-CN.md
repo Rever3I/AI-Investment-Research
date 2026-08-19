@@ -48,12 +48,15 @@ allowed-tools:
 import sys
 sys.path.insert(0, "<this skill's directory>")
 
-from airesearch.config import ensure_profile
-from airesearch.data.adapters import configure, status_report
-
-print(ensure_profile())                 # creates the settings file on first run
-print(status_report(configure()))
+from airesearch.setup_guide import guide
+print(guide())
 ```
+
+这一个调用就是完整的首次运行。它会在配置文件不存在时建出来、打印路径、从每个能应答
+的数据源真的取一次数，并对缺失的项打印出确切的键、确切的文件、以及值从哪来。用户改完
+配置后再跑一次——一个填了但填错的 key，和填对的长得一模一样，只有真的取到数才分得出来。
+
+把它的输出原样给用户看，不要转述。里面的路径正是他需要的东西。
 
 这会打印出哪些数据源现在能跑。行情零配置即可用。美股财报需要 `sec_contact`（姓名加
 邮箱；不填 SEC 返回 403），宏观序列需要一个免费的 `fred_api_key`。
