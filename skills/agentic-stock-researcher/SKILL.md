@@ -1,5 +1,5 @@
 ---
-name: ai-portfolio-manager
+name: agentic-stock-researcher
 description: >
   A five-stage equity research pipeline: find candidates, write a falsifiable
   thesis, value it with an owner-earnings DCF and a reverse DCF, size the
@@ -17,11 +17,11 @@ allowed-tools:
   - Bash
 ---
 
-# AI Portfolio Manager
+# Agentic Stock Researcher
 
-The research work a portfolio manager does, in five stages: find the name, write
-the argument, value it, size it, and check what changed before selling. It does
-not decide for you and it does not place trades.
+Buy-side research in five stages: find the name, write the argument, value it,
+size it, and check what changed before selling. Every number carries its source
+and can be recomputed. It does not decide for you and it does not place trades.
 
 Delivered as a single SKILL.md package. Not locked to one host, not a hosted
 service: install it into any tool that reads SKILL.md, point it at your own
@@ -71,7 +71,7 @@ the first time it is called and returns the path; if the file is already there
 it is returned untouched. `load_profile()` shows what is in effect.
 
 Where that path is depends on the install: `config/research-profile.json` in a
-source checkout, `~/.ai-portfolio-manager/research-profile.json` for a
+source checkout, `~/.agentic-stock-researcher/research-profile.json` for a
 standalone skill. **Always report the path `ensure_profile()` returns rather
 than composing one** — settings written to the other location are simply never
 read, and the run then fails on a 403 that looks like a network problem.

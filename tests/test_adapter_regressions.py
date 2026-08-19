@@ -281,7 +281,7 @@ def test_a_session_close_passes_the_fact_contract(monkeypatch):
 def test_a_setup_message_names_the_profile_path_that_is_read(build, monkeypatch):
     """These messages said `config/research-profile.json`, which is only right
     in a source checkout. Copied into a host as a standalone skill, the profile
-    is read from ~/.ai-portfolio-manager/ instead — so a buyer following the
+    is read from ~/.agentic-stock-researcher/ instead — so a buyer following the
     message created a file nothing reads, and the resulting 403 looked like a
     network fault rather than a missing setting."""
     from airesearch import config

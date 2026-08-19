@@ -1,4 +1,4 @@
-# AI Investment Research
+# Agentic Stock Researcher
 
 English · [简体中文](README.zh-CN.md)
 
@@ -21,7 +21,7 @@ from a macro view are judged by the same standard.
 | Portfolio | position weight from scenario probabilities | `Portfolio` |
 | Sellcheck | what changed since the thesis was written | `Sellcheck` |
 
-`skills/ai-portfolio-manager/` is self-contained: SKILL.md routes to a guide per
+`skills/agentic-stock-researcher/` is self-contained: SKILL.md routes to a guide per
 stage, and the Python library sits beside them. Copying that one directory into
 a host gives a working install.
 
@@ -39,11 +39,11 @@ a host gives a working install.
 
 ## Installing
 
-Point your host at `skills/ai-portfolio-manager/`, or clone and install:
+Point your host at `skills/agentic-stock-researcher/`, or clone and install:
 
 ```bash
-git clone https://github.com/Rever3I/ai-portfolio-manager.git
-cd ai-portfolio-manager
+git clone https://github.com/Rever3I/agentic-stock-researcher.git
+cd agentic-stock-researcher
 pip install -e .
 ```
 
@@ -95,7 +95,7 @@ standard library has no YAML parser.
 called and returns its path; call it before reading a setting and report the
 path it gives you. Where that path is depends on the install —
 `config/research-profile.json` in a checkout,
-`~/.ai-portfolio-manager/research-profile.json` for a standalone skill — and
+`~/.agentic-stock-researcher/research-profile.json` for a standalone skill — and
 settings written to the other one are simply never read.
 
 Point `AI_RESEARCH_PROFILE` at a different file to use another profile. Every

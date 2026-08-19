@@ -237,7 +237,7 @@ _TEMPLATE = """<!doctype html>
 <script>
 const DATA = {payload};
 
-// Mirrors skills/ai-portfolio-manager/airesearch/valuation/dcf.py. A test computes both and compares, so
+// Mirrors skills/agentic-stock-researcher/airesearch/valuation/dcf.py. A test computes both and compares, so
 // this cannot drift from the arithmetic that produced the stored numbers.
 function project(oe, g, years, terminalG) {{
   const out = [];

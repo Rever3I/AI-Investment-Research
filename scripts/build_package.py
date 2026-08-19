@@ -27,7 +27,7 @@ import zipfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-SKILL = REPO / "skills" / "ai-portfolio-manager"
+SKILL = REPO / "skills" / "agentic-stock-researcher"
 
 # The Chinese versions, kept beside the skill rather than inside it so nothing
 # scanning the skill folder for *.md picks up two SKILL files.
@@ -44,7 +44,7 @@ EXCLUDE_SUFFIXES = {".pyc", ".pyo"}
 # inside a zip nobody has opened.
 ALLOWED_SUFFIXES = {".py", ".md", ".json", ".txt", ".yaml", ".yml", ".toml"}
 
-DEFAULT_NAMES = {"en": "ai-portfolio-manager", "zh": "ai-portfolio-manager-zh"}
+DEFAULT_NAMES = {"en": "agentic-stock-researcher", "zh": "agentic-stock-researcher-zh"}
 
 
 def version() -> str:

@@ -1,4 +1,4 @@
-# 一人投资交易投研团队 Pro 版
+# Agentic Stock Researcher
 
 [English](README.md) · 简体中文
 
@@ -18,7 +18,7 @@
 | 仓位 | 使用半 Kelly 计算公式，帮助用户决策仓位数量，控制回撤 | `Portfolio` |
 | 复查 | 卖出前调出建仓观点，减少价格波动引起的情绪化交易，增强决策质量 | `Sellcheck` |
 
-`skills/ai-portfolio-manager/` 是自包含的：SKILL.md 负责路由，每个阶段一份指南，Python 库就放在旁边。把这一个目录复制到你的 AI 工具里就能用。
+`skills/agentic-stock-researcher/` 是自包含的：SKILL.md 负责路由，每个阶段一份指南，Python 库就放在旁边。把这一个目录复制到你的 AI 工具里就能用。
 
 ## 设计原则
 
@@ -29,11 +29,11 @@
 
 ## 安装
 
-让你的 AI 工具指向 `skills/ai-portfolio-manager/`，或者克隆后原地安装：
+让你的 AI 工具指向 `skills/agentic-stock-researcher/`，或者克隆后原地安装：
 
 ```bash
-git clone https://github.com/Rever3I/ai-portfolio-manager.git
-cd ai-portfolio-manager
+git clone https://github.com/Rever3I/agentic-stock-researcher.git
+cd agentic-stock-researcher
 pip install -e .
 ```
 
@@ -70,7 +70,7 @@ skill 目录自带库，单独复制它就够用。如果你的 AI 工具不会�
 `ensure_profile()` 会在第一次调用时按默认值把这个文件建出来并返回路径；读设置之前
 先调它，并且报它给的那个路径。路径取决于安装方式——源码仓库里是
 `config/research-profile.json`，作为独立 skill 安装时是
-`~/.ai-portfolio-manager/research-profile.json`——写到另一个位置的设置永远不会被读。
+`~/.agentic-stock-researcher/research-profile.json`——写到另一个位置的设置永远不会被读。
 
 想用另一份配置就设 `AI_RESEARCH_PROFILE` 环境变量指向它。所有配置项都有可用的默认值，配置文件缺失、只写一部分、甚至存坏了，都会退回默认值并给出警告，不会中断流水线。
 

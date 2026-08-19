@@ -62,7 +62,7 @@ def test_installed_package_falls_back_to_a_user_directory(kind, monkeypatch, tmp
     # Pin both user directories: the developer's real home may hold one from an
     # install under the project's previous name, and the fallback would then
     # resolve somewhere this test did not choose.
-    monkeypatch.setattr(paths, "_USER_DIR", tmp_path / ".ai-portfolio-manager")
+    monkeypatch.setattr(paths, "_USER_DIR", tmp_path / ".agentic-stock-researcher")
     monkeypatch.setattr(paths, "_LEGACY_USER_DIR", tmp_path / ".ai-investment-research")
 
     resolved = resolve()
@@ -97,7 +97,7 @@ def test_the_directory_from_the_old_name_is_used_when_it_is_the_one_in_use(
 
     legacy = tmp_path / ".ai-investment-research"
     legacy.mkdir()
-    monkeypatch.setattr(paths, "_USER_DIR", tmp_path / ".ai-portfolio-manager")
+    monkeypatch.setattr(paths, "_USER_DIR", tmp_path / ".agentic-stock-researcher")
     monkeypatch.setattr(paths, "_LEGACY_USER_DIR", legacy)
     monkeypatch.delenv(paths.DB_ENV_VAR, raising=False)
     monkeypatch.setattr(paths, "_is_source_checkout", lambda root: False)
@@ -111,7 +111,7 @@ def test_the_new_directory_wins_once_it_exists(monkeypatch, tmp_path):
     from airesearch import paths
 
     legacy = tmp_path / ".ai-investment-research"
-    current = tmp_path / ".ai-portfolio-manager"
+    current = tmp_path / ".agentic-stock-researcher"
     legacy.mkdir()
     current.mkdir()
     monkeypatch.setattr(paths, "_USER_DIR", current)
@@ -125,9 +125,9 @@ def test_the_new_directory_wins_once_it_exists(monkeypatch, tmp_path):
 def test_a_fresh_install_uses_the_current_name(monkeypatch, tmp_path):
     from airesearch import paths
 
-    monkeypatch.setattr(paths, "_USER_DIR", tmp_path / ".ai-portfolio-manager")
+    monkeypatch.setattr(paths, "_USER_DIR", tmp_path / ".agentic-stock-researcher")
     monkeypatch.setattr(paths, "_LEGACY_USER_DIR", tmp_path / ".ai-investment-research")
     monkeypatch.delenv(paths.DB_ENV_VAR, raising=False)
     monkeypatch.setattr(paths, "_is_source_checkout", lambda root: False)
 
-    assert paths.default_db_path().parent.name == ".ai-portfolio-manager"
+    assert paths.default_db_path().parent.name == ".agentic-stock-researcher"

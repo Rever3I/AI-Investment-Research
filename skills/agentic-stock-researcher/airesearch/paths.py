@@ -9,7 +9,7 @@ the other writes into site-packages.
 Resolution order, for both the database and the config file:
   1. the matching environment variable, if set — an explicit override always wins
   2. the path inside the source checkout, when running from one
-  3. a per-user directory otherwise, which is `~/.ai-portfolio-manager` unless an
+  3. a per-user directory otherwise, which is `~/.agentic-stock-researcher` unless an
      install under the project's previous name is already there
 
 Step 3 matters because a non-editable `pip install .` puts these modules inside
@@ -24,7 +24,7 @@ from pathlib import Path
 DB_ENV_VAR = "AI_RESEARCH_DB"
 PROFILE_ENV_VAR = "AI_RESEARCH_PROFILE"
 
-_USER_DIR = Path.home() / ".ai-portfolio-manager"
+_USER_DIR = Path.home() / ".agentic-stock-researcher"
 
 # What the project was called before it was renamed. Anyone who installed it
 # under the old name has their profile and database in here, and switching
@@ -39,7 +39,7 @@ def _user_dir() -> Path:
         return _LEGACY_USER_DIR
     return _USER_DIR
 
-# paths.py lives at <root>/skills/ai-portfolio-manager/airesearch/paths.py
+# paths.py lives at <root>/skills/agentic-stock-researcher/airesearch/paths.py
 _CHECKOUT_ROOT = Path(__file__).resolve().parents[3]
 
 

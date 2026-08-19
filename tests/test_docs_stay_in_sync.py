@@ -30,7 +30,7 @@ _READMES = {
 # The stage guides on disk, so adding or merging one cannot leave the READMEs
 # describing a shape the repo no longer has.
 _LAYERS = tuple(sorted(
-    p.stem for p in (_REPO / "skills" / "ai-portfolio-manager" / "references").glob("*.md")
+    p.stem for p in (_REPO / "skills" / "agentic-stock-researcher" / "references").glob("*.md")
 ))
 
 
@@ -101,6 +101,6 @@ def test_the_clone_url_is_identical_in_both(lang, path):
     """Two casings of the same URL is two canonical repos to anything that
     compares the string."""
     urls = set(re.findall(r"https://github\.com/\S+?\.git", _text(path)))
-    assert urls == {"https://github.com/Rever3I/ai-portfolio-manager.git"}, (
+    assert urls == {"https://github.com/Rever3I/agentic-stock-researcher.git"}, (
         f"{path.name} clone URL(s) {urls} differ from the canonical one"
     )
